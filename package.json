@@ -3,8 +3,8 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
+    "start": "expo start -- --port 3001",
+    "android": "expo start --android --port 3001",
     "ios": "expo start --ios",
     "web": "expo start --web"
   },
@@ -38,6 +38,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "@types/react-native": "^0.72.8",
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2"
   },
