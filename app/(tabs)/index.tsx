@@ -1,8 +1,11 @@
 
+
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { CalendarCheck, Stethoscope, Bot, HeartPulse, Shield, Clock, Star, ChevronDown } from 'lucide-react-native';
+import { CalendarCheck, Stethoscope, Shield, Clock, Bot, HeartPulse, Star } from 'lucide-react-native';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../src/redux';
 
 const features = [
   {
@@ -57,6 +60,7 @@ const testimonials = [
 
 export default function HomeMobileScreen() {
   const router = useRouter();
+  const { token } = useSelector((state: RootState) => state.auth);
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}>
       {/* Hero Section */}
@@ -91,17 +95,19 @@ export default function HomeMobileScreen() {
       </View>
 
       {/* Đăng nhập/Đăng ký Section */}
-      <View style={styles.authSection}>
-        <Text style={styles.authPrompt}>Bạn chưa có tài khoản?</Text>
-        <View style={styles.authBtnRow}>
-          <TouchableOpacity style={styles.loginBtn} onPress={() => router.push('/(auth)/login')}>
-            <Text style={styles.loginBtnText}>Đăng nhập</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.registerBtn} onPress={() => router.push('/(auth)/register')}>
-            <Text style={styles.registerBtnText}>Đăng ký</Text>
-          </TouchableOpacity>
+      {!token && (
+        <View style={styles.authSection}>
+          <Text style={styles.authPrompt}>Bạn chưa có tài khoản?</Text>
+          <View style={styles.authBtnRow}>
+            <TouchableOpacity style={styles.loginBtn} onPress={() => router.push('/(auth)/login')}>
+              <Text style={styles.loginBtnText}>Đăng nhập</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.registerBtn} onPress={() => router.push('/(auth)/register')}>
+              <Text style={styles.registerBtnText}>Đăng ký</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Features Section */}
       <View style={styles.section}>
