@@ -1,33 +1,60 @@
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native'; // Temporary, will be replaced with icons
+import { Home, Activity, Bot, User } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: '#059669',
+        tabBarInactiveTintColor: '#6b7280',
+        tabBarStyle: {
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#e5e7eb',
+          height: 64,
+          paddingBottom: 8,
+          paddingTop: 4,
+        },
+        tabBarLabelStyle: {
+          fontSize: 13,
+          fontWeight: '600',
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Trang chủ',
           tabBarIcon: ({ color, focused }) => (
-            <Text style={{ color }}>🏠</Text> // Temporary icon
+            <Home color={color} size={24} />
           ),
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="diagnosis"
         options={{
-          title: 'Khác',
+          title: 'Diagnosis',
           tabBarIcon: ({ color, focused }) => (
-            <Text style={{ color }}>⚙️</Text> // Temporary icon
+            <Activity color={color} size={24} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="chatbot"
+        options={{
+          title: 'Chat-bot',
+          tabBarIcon: ({ color, focused }) => (
+            <Bot color={color} size={24} />
           ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Hồ sơ',
+          title: 'Người dùng',
           tabBarIcon: ({ color, focused }) => (
-            <Text style={{ color }}>👤</Text> // Temporary icon
+            <User color={color} size={24} />
           ),
         }}
       />
