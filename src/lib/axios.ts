@@ -1,7 +1,9 @@
 // lib/axios.ts
 import axios from "axios";
 // Không import store và slice ở đây nữa để tránh require cycle
-const BASE_URL = "https://d01jtfcv-8080.asse.devtunnels.ms/v1"; // Thay thế bằng URL API thực tế của bạn
+// Ưu tiên lấy từ biến môi trường EXPO_PUBLIC_API_URL (định nghĩa trong .env)
+// Ví dụ: EXPO_PUBLIC_API_URL=http://localhost:8080/v1
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080/v1";
 
 // ===============
 // API Instances
