@@ -1,7 +1,7 @@
 // lib/axios.ts
 import axios from "axios";
 // Không import store và slice ở đây nữa để tránh require cycle
-const BASE_URL = "http://localhost:5000/api"; // Thay thế bằng URL API thực tế của bạn
+const BASE_URL = "https://d01jtfcv-8080.asse.devtunnels.ms/v1"; // Thay thế bằng URL API thực tế của bạn
 
 // ===============
 // API Instances
