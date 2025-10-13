@@ -5,7 +5,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
-import { Provider } from 'react-redux';
+import { Provider, useSelector } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from '../src/redux';
 import { useColorScheme } from '../components/useColorScheme';
@@ -19,10 +19,10 @@ export {
   ErrorBoundary,
 } from 'expo-router';
 
-export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
-};
+// export const unstable_settings = {
+//   // Ensure that reloading on `/modal` keeps a back button present.
+//   initialRouteName: '(tabs)',
+// };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -51,17 +51,46 @@ export default function RootLayout() {
   return <RootLayoutNav />;
 }
 
+import { RootState } from '../src/redux';
+
+// Component để điều hướng dựa trên trạng thái xác thực
+function AuthenticatedApp() {
+  console.log('AppNavigator - Rendering AuthenticatedApp');
+  return (
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+    </Stack>
+  );
+}
+
+function UnauthenticatedApp() {
+  console.log('AppNavigator - Rendering UnauthenticatedApp');
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(auth)" />
+    </Stack>
+  );
+}
+
+function AppNavigator() {
+  const { isInitialized, token } = useSelector((state: RootState) => state.auth);
+
+  if (!isInitialized) {
+    return null; // Giữ nguyên như cũ, vì splash screen đã được xử lý ở cấp cao hơn
+  }
+
+  return token ? <AuthenticatedApp /> : <UnauthenticatedApp />;
+}
+
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+ const colorScheme = useColorScheme();
 
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-          </Stack>
+          <AppNavigator />
         </ThemeProvider>
       </PersistGate>
     </Provider>
