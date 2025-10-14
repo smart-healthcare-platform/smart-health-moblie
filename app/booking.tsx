@@ -1,111 +1,422 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
-import { User, HeartPulse } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  Modal,
+  ActivityIndicator,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { useDispatch, useSelector } from 'react-redux';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  User,
+  FileText,
+  CheckCircle,
+  ChevronRight,
+  ArrowLeft,
+} from 'lucide-react-native';
+import { RootState } from '../src/redux';
+import { resetBooking, setDate, setSlot, setFormData } from '../src/redux/slices/bookingSlice';
+import { appointmentService } from '../src/services/appointment.service';
+import { CreateAppointmentPayload } from '../src/types';
+
+// Lazy import components
+const DoctorSelectionStep = require('./booking/step-1').default;
+const DateTimeSelectionStep = require('./booking/step-2').default;
+const PatientInfoStep = require('./booking/step-3').default;
+const BookingSummaryStep = require('./booking/step-4').default;
+
+const steps = [
+  { id: 1, title: 'Chọn bác sĩ', icon: User },
+  { id: 2, title: 'Chọn lịch', icon: CalendarIcon },
+  { id: 3, title: 'Thông tin', icon: FileText },
+  { id: 4, title: 'Xác nhận', icon: CheckCircle },
+];
 
 export default function BookingScreen() {
-  // Mock data lịch đặt mới
-  const bookings = [
-    {
-      id: '1',
-      doctor: 'BS. Nguyễn Văn A',
-      specialty: 'Tim mạch',
-      date: '2025-10-20',
-      time: '10:00',
-      status: 'Sắp tới',
-    },
-    {
-      id: '2',
-      doctor: 'BS. Trần Thị B',
-      specialty: 'Nội tổng quát',
-      date: '2025-10-22',
-      time: '15:30',
-      status: 'Sắp tới',
-    },
-  ];
-
-  const renderItem = ({ item }: { item: typeof bookings[0] }) => (
-    <View style={styles.card}>
-      <View style={styles.iconCol}><User color="#059669" size={28} /></View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.doctor}>{item.doctor}</Text>
-        <Text style={styles.specialty}><HeartPulse size={13} color="#ef4444" /> {item.specialty}</Text>
-        <Text style={styles.date}>{item.date} lúc {item.time}</Text>
-        <Text style={styles.status}>{item.status}</Text>
-      </View>
-    </View>
+  const router = useRouter();
+  const dispatch = useDispatch();
+  const { doctor, slot_id, slot_start_time, formData, date } = useSelector(
+    (state: RootState) => state.booking
   );
+  const { user } = useSelector((state: RootState) => state.auth);
+
+  const [currentStep, setCurrentStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+
+  // Reset booking khi vào màn hình
+  useEffect(() => {
+    dispatch(resetBooking());
+  }, []);
+
+  // Kiểm tra có thể next step không
+  const canProceed = () => {
+    if (currentStep === 1) return !!doctor;
+    if (currentStep === 2) return !!slot_id && !!slot_start_time && !!date;
+    if (currentStep === 3)
+      return formData.fullName && formData.phone && formData.birthDate && formData.gender;
+    return true;
+  };
+
+  const handleNext = () => {
+    if (currentStep < 4) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    } else {
+      router.back();
+    }
+  };
+
+  const handleConfirmBooking = async () => {
+    if (!doctor || !slot_id || !slot_start_time || !user) {
+      Alert.alert('Lỗi', 'Thiếu thông tin đặt lịch');
+      return;
+    }
+
+    setLoading(true);
+    const payload: CreateAppointmentPayload = {
+      doctorId: doctor.id,
+      slotId: slot_id,
+      userId: user.id,
+      date: new Date(slot_start_time).toISOString(),
+      type: 'Khám bệnh',
+      notes: formData.notes || '',
+      doctorName: doctor.display_name || doctor.full_name,
+      startAt: slot_start_time,
+    };
+
+    try {
+      await appointmentService.create(payload);
+      dispatch(resetBooking());
+      setSuccessModalVisible(true);
+    } catch (err: any) {
+      console.error('Booking error:', err);
+      Alert.alert('Lỗi', err.message || 'Đặt lịch thất bại!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSuccessClose = () => {
+    setSuccessModalVisible(false);
+    router.push('/appointment-history');
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return <DoctorSelectionStep />;
+      case 2:
+        return <DateTimeSelectionStep />;
+      case 3:
+        return <PatientInfoStep />;
+      case 4:
+        return <BookingSummaryStep />;
+      default:
+        return null;
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Đặt lịch khám mới</Text>
-      <FlatList
-        data={bookings}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 24 }}
+      {/* Header */}
+      <LinearGradient colors={['#10b981', '#059669']} style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <ArrowLeft size={24} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Đặt lịch khám</Text>
+        <View style={{ width: 24 }} />
+      </LinearGradient>
+
+      {/* Timeline Steps */}
+      <View style={styles.timeline}>
+        {steps.map((step, index) => {
+          const Icon = step.icon;
+          const isActive = currentStep === step.id;
+          const isCompleted = currentStep > step.id;
+
+          return (
+            <View key={step.id} style={styles.timelineItem}>
+              <View
+                style={[
+                  styles.timelineCircle,
+                  isActive && styles.timelineCircleActive,
+                  isCompleted && styles.timelineCircleCompleted,
+                ]}
+              >
+                <Icon
+                  size={16}
+                  color={isActive || isCompleted ? '#fff' : '#9ca3af'}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.timelineText,
+                  (isActive || isCompleted) && styles.timelineTextActive,
+                ]}
+              >
+                {step.title}
+              </Text>
+              {index < steps.length - 1 && (
+                <View
+                  style={[
+                    styles.timelineLine,
+                    isCompleted && styles.timelineLineCompleted,
+                  ]}
+                />
+              )}
+            </View>
+          );
+        })}
+      </View>
+
+      {/* Content */}
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
-      />
+      >
+        {renderStepContent()}
+      </ScrollView>
+
+      {/* Bottom Actions */}
+      <View style={styles.bottomActions}>
+        {currentStep < 4 ? (
+          <TouchableOpacity
+            style={[
+              styles.nextButton,
+              !canProceed() && styles.nextButtonDisabled,
+            ]}
+            onPress={handleNext}
+            disabled={!canProceed()}
+          >
+            <Text style={styles.nextButtonText}>
+              {currentStep === 3 ? 'Xem lại thông tin' : 'Tiếp tục'}
+            </Text>
+            <ChevronRight size={20} color="#fff" />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.confirmButton, loading && styles.confirmButtonDisabled]}
+            onPress={handleConfirmBooking}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <CheckCircle size={20} color="#fff" />
+                <Text style={styles.confirmButtonText}>Xác nhận đặt lịch</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Success Modal */}
+      <Modal
+        visible={successModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleSuccessClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.successIcon}>
+              <CheckCircle size={48} color="#10b981" />
+            </View>
+            <Text style={styles.modalTitle}>Đặt lịch thành công!</Text>
+            <Text style={styles.modalText}>
+              Yêu cầu đặt lịch đã được ghi nhận. Chúng tôi sẽ gửi thông báo sớm nhất đến bạn!
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={handleSuccessClose}
+            >
+              <Text style={styles.modalButtonText}>Xem lịch hẹn</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: '#f8fafc',
-      paddingHorizontal: 12,
-      paddingTop: 18,
-    },
-    title: {
-      fontSize: 22,
-      fontWeight: 'bold',
-      color: '#059669',
-      marginBottom: 18,
-      textAlign: 'center',
-    },
-    card: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: '#fff',
-      borderRadius: 16,
-      padding: 14,
-      marginBottom: 14,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.07,
-      shadowRadius: 6,
-      elevation: 1,
-      gap: 12,
-    },
-    iconCol: {
-      backgroundColor: '#d1fae5',
-      borderRadius: 12,
-      padding: 8,
-      marginRight: 10,
-    },
-    doctor: {
-      fontSize: 16,
-      fontWeight: 'bold',
-      color: '#1e293b',
-      marginBottom: 2,
-    },
-    specialty: {
-      color: '#ef4444',
-      fontSize: 13,
-      marginBottom: 2,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-    },
-    date: {
-      color: '#2563eb',
-      fontSize: 13,
-      marginBottom: 2,
-    },
-    status: {
-      color: '#059669',
-      fontWeight: 'bold',
-      fontSize: 13,
-      marginTop: 2,
-    },
-  });
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  timeline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  timelineItem: {
+    flex: 1,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  timelineCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#e5e7eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  timelineCircleActive: {
+    backgroundColor: '#10b981',
+  },
+  timelineCircleCompleted: {
+    backgroundColor: '#059669',
+  },
+  timelineText: {
+    fontSize: 10,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  timelineTextActive: {
+    color: '#10b981',
+    fontWeight: '600',
+  },
+  timelineLine: {
+    position: 'absolute',
+    top: 16,
+    left: '50%',
+    width: '100%',
+    height: 2,
+    backgroundColor: '#e5e7eb',
+    zIndex: -1,
+  },
+  timelineLineCompleted: {
+    backgroundColor: '#10b981',
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: 16,
+  },
+  bottomActions: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  nextButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10b981',
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  nextButtonDisabled: {
+    backgroundColor: '#d1d5db',
+  },
+  nextButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  confirmButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10b981',
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  confirmButtonDisabled: {
+    backgroundColor: '#d1d5db',
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    width: '100%',
+  },
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#d1fae5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: 8,
+  },
+  modalText: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  modalButton: {
+    backgroundColor: '#10b981',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+});
