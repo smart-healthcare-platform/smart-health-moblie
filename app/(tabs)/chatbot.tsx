@@ -22,6 +22,21 @@ import {
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import Markdown from 'react-native-markdown-display';
+import { chatbotService } from '../../src/services/chatbot.service';
+
+// Hook để theo dõi trạng thái mounted của component (tránh memory leak)
+const useIsMounted = () => {
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  return isMounted;
+};
 
 interface Message {
   id: number;
@@ -41,13 +56,9 @@ interface ServiceOption {
   color: string;
 }
 
-interface ChatResponse {
-  response: string;
-}
-
 export default function ChatbotScreen() {
   const router = useRouter();
-  const [apiUrl, setApiUrl] = useState<string | null>(null);
+  const isMounted = useIsMounted(); // Thêm hook để theo dõi mounted state
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -60,12 +71,6 @@ export default function ChatbotScreen() {
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollViewRef = useRef<ScrollView | null>(null);
-
-  useEffect(() => {
-    // Get API URL from environment variable
-    const url = process.env.EXPO_PUBLIC_CHATBOT_API_URL || 'http://localhost:8000';
-    setApiUrl(url);
-  }, []);
 
   const serviceOptions: ServiceOption[] = [
     {
@@ -105,7 +110,7 @@ export default function ChatbotScreen() {
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || !apiUrl) return;
+    if (!inputMessage.trim()) return;
 
     const userMessage: Message = {
       id: messages.length + 1,
@@ -115,41 +120,39 @@ export default function ChatbotScreen() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const currentInput = inputMessage; // Lưu lại input để tránh race condition
     setInputMessage('');
     setIsTyping(true);
 
     try {
-      const response = await fetch(`${apiUrl}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message: inputMessage }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await chatbotService.sendMessage(currentInput);
+      
+      // Kiểm tra component vẫn mounted trước khi cập nhật state
+      if (isMounted.current) {
+        const botResponse: Message = {
+          id: messages.length + 2,
+          text: data.response || 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.',
+          isBot: true,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, botResponse]);
       }
-
-      const data: ChatResponse = await response.json();
-      const botResponse: Message = {
-        id: messages.length + 2,
-        text: data.response || 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.',
-        isBot: true,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, botResponse]);
     } catch (error) {
       console.error('Error sending message to chatbot API:', error);
-      const errorMessage: Message = {
-        id: messages.length + 2,
-        text: 'Có lỗi xảy ra khi kết nối với máy chủ. Vui lòng thử lại sau.',
-        isBot: true,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      
+      if (isMounted.current) {
+        const errorMessage: Message = {
+          id: messages.length + 2,
+          text: 'Có lỗi xảy ra khi kết nối với máy chủ. Vui lòng thử lại sau.',
+          isBot: true,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
     } finally {
-      setIsTyping(false);
+      if (isMounted.current) {
+        setIsTyping(false);
+      }
     }
   };
 
@@ -165,7 +168,7 @@ export default function ChatbotScreen() {
     router.push('/doctors');
   };
 
-  const handleServiceOption = (optionId: string) => {
+  const handleServiceOption = async (optionId: string) => {
     const option = serviceOptions.find((opt) => opt.id === optionId);
     if (!option) return;
 
@@ -184,8 +187,11 @@ export default function ChatbotScreen() {
     setMessages([...updatedMessages, userMessage]);
     setIsTyping(true);
 
-    // Bot responds with a confirmation/prompt
-    setTimeout(() => {
+    // Bot responds with a confirmation/prompt after a short delay
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate bot thinking time
+    
+    // Kiểm tra nếu component vẫn mounted trước khi cập nhật state
+    if (isMounted.current) {
       let botResponse: Message | null = null;
       const botMessageId = messages.length + 2;
 
@@ -227,11 +233,13 @@ export default function ChatbotScreen() {
           break;
       }
 
-      if (botResponse) {
+      if (botResponse && isMounted.current) {
         setMessages((prev) => [...prev, botResponse!]);
       }
-      setIsTyping(false);
-    }, 1000); // Simulate bot thinking time
+      if (isMounted.current) {
+        setIsTyping(false);
+      }
+    }
   };
 
   const formatTime = (timestamp: Date) =>
@@ -292,14 +300,17 @@ export default function ChatbotScreen() {
                   message.isBot ? styles.botMessageBubble : styles.userMessageBubble,
                 ]}
               >
-                <Text
-                  style={[
-                    styles.messageText,
-                    message.isBot ? styles.botMessageText : styles.userMessageText,
-                  ]}
-                >
-                  {message.text}
-                </Text>
+                {message.isBot ? (
+                  <Markdown
+                    style={markdownStyles}
+                  >
+                    {message.text}
+                  </Markdown>
+                ) : (
+                  <Text style={styles.userMessageText}>
+                    {message.text}
+                  </Text>
+                )}
                 <Text
                   style={[
                     styles.messageTime,
@@ -689,5 +700,121 @@ const styles = StyleSheet.create({
   sendButtonDisabled: {
     backgroundColor: '#d1d5db',
     opacity: 0.5,
+  },
+});
+
+// Markdown styles for bot messages
+const markdownStyles = StyleSheet.create({
+  body: {
+    color: '#1f2937',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  heading1: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#10b981',
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  heading2: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#10b981',
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  heading3: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#059669',
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  paragraph: {
+    marginTop: 0,
+    marginBottom: 8,
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#1f2937',
+  },
+  strong: {
+    fontWeight: '700',
+    color: '#111827',
+  },
+  em: {
+    fontStyle: 'italic',
+  },
+  text: {
+    color: '#1f2937',
+  },
+  bullet_list: {
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  ordered_list: {
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  list_item: {
+    marginTop: 2,
+    marginBottom: 2,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  bullet_list_icon: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#10b981',
+    marginLeft: 0,
+    marginRight: 8,
+  },
+  ordered_list_icon: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#10b981',
+    marginLeft: 0,
+    marginRight: 8,
+  },
+  code_inline: {
+    backgroundColor: '#f3f4f6',
+    color: '#059669',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 14,
+  },
+  fence: {
+    backgroundColor: '#f3f4f6',
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#10b981',
+  },
+  code_block: {
+    backgroundColor: '#f3f4f6',
+    color: '#1f2937',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  blockquote: {
+    backgroundColor: '#f0fdf4',
+    borderLeftWidth: 4,
+    borderLeftColor: '#10b981',
+    paddingLeft: 12,
+    paddingVertical: 8,
+    marginVertical: 8,
+  },
+  link: {
+    color: '#10b981',
+    textDecorationLine: 'underline',
+  },
+  hr: {
+    backgroundColor: '#d1d5db',
+    height: 1,
+    marginVertical: 12,
   },
 });
