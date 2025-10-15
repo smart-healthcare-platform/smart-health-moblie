@@ -6,6 +6,7 @@ interface BaseUser {
     email: string;
     createdAt: string;
     referenceId?: string;
+    avatarUrl?: string; // Add avatar URL field
 }
 
 interface PatientProfile {
