@@ -25,6 +25,7 @@ import { RootState } from '../src/redux';
 import { resetBooking, setDate, setSlot, setFormData } from '../src/redux/slices/bookingSlice';
 import { appointmentService } from '../src/services/appointment.service';
 import { CreateAppointmentPayload } from '../src/types';
+import { useBookingValidation } from '../hooks/booking/useBookingValidation';
 
 // Lazy import components
 const DoctorSelectionStep = require('./booking/step-1').default;
@@ -51,22 +52,27 @@ export default function BookingScreen() {
   const [loading, setLoading] = useState(false);
   const [successModalVisible, setSuccessModalVisible] = useState(false);
 
+  // 🎯 Use validation hook
+  const { canProceedToStep, getValidationErrors, isBookingValid } = useBookingValidation();
+
   // Reset booking khi vào màn hình
   useEffect(() => {
     dispatch(resetBooking());
   }, []);
 
-  // Kiểm tra có thể next step không
+  // Kiểm tra có thể next step không - Sử dụng hook
   const canProceed = () => {
-    if (currentStep === 1) return !!doctor;
-    if (currentStep === 2) return !!slot_id && !!slot_start_time && !!date;
-    if (currentStep === 3)
-      return formData.fullName && formData.phone && formData.birthDate && formData.gender;
-    return true;
+    return canProceedToStep(currentStep);
   };
 
   const handleNext = () => {
     if (currentStep < 4) {
+      // Validate trước khi next
+      if (!canProceed()) {
+        const errors = getValidationErrors(currentStep);
+        Alert.alert('Thông tin chưa đầy đủ', errors.join('\\n'));
+        return;
+      }
       setCurrentStep(currentStep + 1);
     }
   };
@@ -80,6 +86,13 @@ export default function BookingScreen() {
   };
 
   const handleConfirmBooking = async () => {
+    // Validate toàn bộ booking data trước khi submit
+    if (!isBookingValid()) {
+      const errors = getValidationErrors(4);
+      Alert.alert('Lỗi', errors.join('\\n'));
+      return;
+    }
+
     if (!doctor || !slot_id || !slot_start_time || !user) {
       Alert.alert('Lỗi', 'Thiếu thông tin đặt lịch');
       return;
@@ -103,7 +116,34 @@ export default function BookingScreen() {
       setSuccessModalVisible(true);
     } catch (err: any) {
       console.error('Booking error:', err);
-      Alert.alert('Lỗi', err.message || 'Đặt lịch thất bại!');
+      
+      // Enhanced error messages
+      let errorTitle = 'Lỗi đặt lịch';
+      let errorMessage = 'Đặt lịch thất bại. Vui lòng thử lại.';
+      
+      if (err.response?.status === 409) {
+        errorTitle = 'Lịch đã được đặt';
+        errorMessage = 'Khung giờ này đã có người đặt. Vui lòng chọn giờ khác.';
+      } else if (err.response?.status === 400) {
+        errorTitle = 'Thông tin không hợp lệ';
+        errorMessage = err.response?.data?.message || 'Vui lòng kiểm tra lại thông tin.';
+      } else if (err.response?.status === 401) {
+        errorTitle = 'Phiên đăng nhập hết hạn';
+        errorMessage = 'Vui lòng đăng nhập lại để tiếp tục.';
+      } else if (err.response?.status === 500) {
+        errorTitle = 'Lỗi server';
+        errorMessage = 'Server đang gặp sự cố. Vui lòng thử lại sau ít phút.';
+      } else if (err.message?.includes('timeout')) {
+        errorTitle = 'Timeout';
+        errorMessage = 'Kết nối bị timeout. Vui lòng kiểm tra mạng và thử lại.';
+      } else if (err.message?.includes('Network')) {
+        errorTitle = 'Lỗi mạng';
+        errorMessage = 'Không thể kết nối. Vui lòng kiểm tra internet.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      Alert.alert(errorTitle, errorMessage);
     } finally {
       setLoading(false);
     }
