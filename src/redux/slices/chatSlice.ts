@@ -191,8 +191,15 @@ const chatSlice = createSlice({
       })
       .addCase(fetchMessages.fulfilled, (state, action) => {
         const { conversationId, messages, page, hasMore } = action.payload;
+        // ✅ Reverse messages: Backend returns newest first, we need oldest first for display
+        // ✅ Deduplicate to prevent duplicate keys
+        const reversed = messages.reverse();
+        const uniqueMessages = reversed.filter((msg, index, self) => 
+          index === self.findIndex((m) => m.id === msg.id)
+        );
+        
         state.messages[conversationId] = {
-          data: messages,
+          data: uniqueMessages,
           page,
           hasMore,
           isLoadingMore: false,
@@ -212,8 +219,17 @@ const chatSlice = createSlice({
       .addCase(fetchMoreMessages.fulfilled, (state, action) => {
         const { conversationId, messages, page, hasMore } = action.payload;
         if (state.messages[conversationId]) {
-          // Prepend older messages to the start of the array
-          state.messages[conversationId].data = [...messages, ...state.messages[conversationId].data];
+          // ✅ Prepend older messages: Reverse them first (backend returns newest first)
+          // Then add to start of array (older messages go before current messages)
+          const reversed = messages.reverse();
+          const combined = [...reversed, ...state.messages[conversationId].data];
+          
+          // ✅ Deduplicate the combined array
+          const uniqueMessages = combined.filter((msg, index, self) => 
+            index === self.findIndex((m) => m.id === msg.id)
+          );
+          
+          state.messages[conversationId].data = uniqueMessages;
           state.messages[conversationId].page = page;
           state.messages[conversationId].hasMore = hasMore;
           state.messages[conversationId].isLoadingMore = false;
