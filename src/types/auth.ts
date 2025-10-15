@@ -25,6 +25,6 @@ interface DoctorProfile {
 }
 
 export type User =
-    | (BaseUser & { role: "PATIENT"; profile: PatientProfile })
-    | (BaseUser & { role: "DOCTOR"; profile: DoctorProfile })
+    | (BaseUser & { role: "PATIENT"; profile?: PatientProfile })
+    | (BaseUser & { role: "DOCTOR"; profile?: DoctorProfile })
     | (BaseUser & { role: "ADMIN" });
