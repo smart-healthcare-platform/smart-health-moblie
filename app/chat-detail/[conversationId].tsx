@@ -35,7 +35,12 @@ export default function ChatDetailScreen() {
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  const conversationMessages = messages[conversationId]?.data || [];
+  // ✅ Deduplicate messages to prevent React key errors
+  const rawMessages = messages[conversationId]?.data || [];
+  const conversationMessages = rawMessages.filter((msg, index, self) => 
+    index === self.findIndex((m) => m.id === msg.id)
+  );
+  
   const conversation = conversations.find((c) => c.id === conversationId);
   const otherParticipant = conversation?.participants?.find(
     (p) => p.userId && p.userId !== user?.id
