@@ -30,23 +30,37 @@ export const useSocket = (options?: UseSocketOptions) => {
       return;
     }
 
-    const socketUrl = process.env.EXPO_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8080';
+    // ✅ FIX: Construct proper socket URL
+    // Remove /v1 suffix and trailing % character if present
+    let socketUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080';
+    socketUrl = socketUrl.replace('/v1', '').replace(/%$/, '').trim();
+    
+    console.log('=== Socket.IO Connection ===');
+    console.log('Socket URL:', socketUrl);
+    console.log('Path:', path);
+    console.log('User ID:', user?.id);
+    console.log('Has Token:', !!token);
     
     const newSocket: SocketIoClientSocket<ServerToClientEvents, ClientToServerEvents> = io(socketUrl, {
       path: path,
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'], // ✅ Add polling fallback
       auth: {
         token: token,
       },
       query: {
         userId: user?.id,
       },
+      reconnection: true, // ✅ Enable auto-reconnection
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 10000,
     });
 
     newSocket.on('connect', () => {
       setIsConnected(true);
       setError(null);
-      console.log('Socket connected');
+      console.log('✅ Socket connected successfully');
+      console.log('Socket ID:', newSocket.id);
     });
 
     newSocket.on('disconnect', (reason: string) => {
