@@ -3,6 +3,7 @@ import { createSlice, PayloadAction, createAsyncThunk } from "@reduxjs/toolkit";
 import { authService } from "../../services/auth.service";
 import { patientService } from "../../services/patient.service";
 import { apiNoAuth } from "../../lib/axios";
+import { UpdatePatientDto, ChangePasswordDto } from "../../types/patient";
 
 // Định nghĩa kiểu cho dữ liệu đăng nhập
 interface LoginCredentials {
@@ -91,6 +92,56 @@ export const register = createAsyncThunk(
   }
 );
 
+// Async thunk cho cập nhật profile
+export const updateProfile = createAsyncThunk(
+  "auth/updateProfile",
+  async ({ patientId, data }: { patientId: string; data: UpdatePatientDto }, { rejectWithValue }) => {
+    try {
+      const updatedPatient = await patientService.updateProfile(patientId, data);
+      return updatedPatient;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || "Cập nhật thông tin thất bại"
+      );
+    }
+  }
+);
+
+// Async thunk cho đổi mật khẩu
+export const changePassword = createAsyncThunk(
+  "auth/changePassword",
+  async (data: ChangePasswordDto, { rejectWithValue }) => {
+    try {
+      // Validate passwords match
+      if (data.newPassword !== data.confirmPassword) {
+        throw new Error("Mật khẩu xác nhận không khớp");
+      }
+      
+      const response = await authService.changePassword(data);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || "Đổi mật khẩu thất bại"
+      );
+    }
+  }
+);
+
+// Async thunk cho upload avatar
+export const uploadAvatar = createAsyncThunk(
+  "auth/uploadAvatar",
+  async ({ patientId, formData }: { patientId: string; formData: FormData }, { rejectWithValue }) => {
+    try {
+      const result = await patientService.uploadAvatar(patientId, formData);
+      return result;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || "Upload ảnh đại diện thất bại"
+      );
+    }
+  }
+);
+
 interface AuthState {
   token: string | null;
   user: User | null;
@@ -147,6 +198,58 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(login.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Xử lý cập nhật profile
+      .addCase(updateProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        // Update user profile in state
+        if (state.user && state.user.role === 'PATIENT') {
+          state.user.profile = {
+            fullName: action.payload.full_name || action.payload.fullName,
+            gender: action.payload.gender,
+            address: action.payload.address,
+            dateOfBirth: action.payload.date_of_birth || action.payload.dateOfBirth,
+          };
+        }
+        state.error = null;
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Xử lý đổi mật khẩu
+      .addCase(changePassword.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(changePassword.fulfilled, (state) => {
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(changePassword.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Xử lý upload avatar
+      .addCase(uploadAvatar.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(uploadAvatar.fulfilled, (state, action) => {
+        state.loading = false;
+        // Update avatar URL in user state
+        if (state.user) {
+          state.user.avatarUrl = action.payload.avatarUrl || action.payload.avatar_url;
+        }
+        state.error = null;
+      })
+      .addCase(uploadAvatar.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
