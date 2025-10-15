@@ -20,7 +20,7 @@ import { useSocket } from '@/hooks/useSocket';
 
 interface Conversation {
   id: string;
-  participants: { id: string; userId?: string; fullName: string; role: string }[];
+  participants: { id: string; fullName: string; role: string }[];
   lastMessage?: {
     content: string;
     createdAt: string;
@@ -57,7 +57,7 @@ export default function ChatHistoryScreen() {
   };
 
   const getOtherParticipant = (conversation: Conversation) => {
-    return conversation.participants?.find((p) => p.userId && p.userId !== user?.id);
+    return conversation.participants?.find((p) => p.id && p.id !== user?.id);
   };
 
   const formatTime = (dateString: string) => {
