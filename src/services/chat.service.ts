@@ -88,10 +88,51 @@ export const getMessages = async (params: GetMessagesParams): Promise<MessageRes
  */
 export const createConversation = async (params: CreateConversationParams): Promise<ConversationResponse> => {
   try {
+    console.log('📤 Creating conversation with params:', params);
     const response = await apiAuth.post(`${CHAT_API_BASE}/conversations`, params);
-    return response.data;
-  } catch (error) {
-    console.error('Error creating conversation:', error);
+    console.log('📥 Create conversation response:', response.data);
+    
+    // Handle different response formats:
+    // 1. Direct: { id: "...", participants: [...], ... }
+    // 2. Nested: { data: { id: "...", participants: [...], ... } }
+    // 3. Backend specific: { conversationId: "...", message: "..." }
+    let conversationData = response.data;
+    
+    // If response.data has a 'data' property, use that instead
+    if (response.data && typeof response.data === 'object' && 'data' in response.data) {
+      console.log('📦 Using nested data property');
+      conversationData = response.data.data;
+    }
+    
+    console.log('📦 Raw conversation data:', conversationData);
+    
+    // Backend returns { conversationId, message } format
+    // We need to transform it to { id, ... } format
+    if (conversationData && 'conversationId' in conversationData) {
+      console.log('� Transforming conversationId to id format');
+      const transformedData: ConversationResponse = {
+        id: conversationData.conversationId,
+        participants: conversationData.participants || [],
+        lastMessage: conversationData.lastMessage,
+        createdAt: conversationData.createdAt || new Date().toISOString(),
+        updatedAt: conversationData.updatedAt || new Date().toISOString(),
+      };
+      console.log('✅ Transformed conversation data:', transformedData);
+      return transformedData;
+    }
+    
+    console.log('📦 Final conversation data:', conversationData);
+    
+    if (!conversationData || !conversationData.id) {
+      console.error('❌ Invalid conversation data:', conversationData);
+      throw new Error('Invalid response: missing conversation data or ID');
+    }
+    
+    return conversationData;
+  } catch (error: any) {
+    console.error('❌ Error creating conversation:', error);
+    console.error('❌ Error response:', error?.response);
+    console.error('❌ Error response data:', error?.response?.data);
     throw error;
  }
 };

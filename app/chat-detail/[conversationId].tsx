@@ -43,7 +43,7 @@ export default function ChatDetailScreen() {
   
   const conversation = conversations.find((c) => c.id === conversationId);
   const otherParticipant = conversation?.participants?.find(
-    (p) => p.userId && p.userId !== user?.id
+    (p) => p.id && p.id !== user?.id
   );
 
   // Fetch messages when conversation is selected

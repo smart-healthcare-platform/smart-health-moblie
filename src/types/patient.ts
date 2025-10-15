@@ -99,3 +99,73 @@ export interface PatientFormData {
   notes:string
   type:string
 }
+
+// Profile Update DTOs
+export interface UpdatePatientDto {
+  fullName?: string;
+  dateOfBirth?: string;
+  gender?: 'male' | 'female' | 'other';
+  phone?: string;
+  email?: string;
+  address?: string;
+  emergencyContact?: {
+    name: string;
+    relationship: string;
+    phone: string;
+  };
+  bloodType?: "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
+  allergies?: string[];
+  chronicConditions?: string[];
+}
+
+export interface ChangePasswordDto {
+  oldPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+// Medical History Types
+export interface Prescription {
+  id: string;
+  prescriptionCode: string;
+  date: string;
+  doctorName: string;
+  medications: Medication[];
+  notes?: string;
+}
+
+export interface Medication {
+  id: string;
+  name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions?: string;
+}
+
+export interface LabResult {
+  id: string;
+  testName: string;
+  testDate: string;
+  result: string;
+  unit?: string;
+  normalRange?: string;
+  status: 'NORMAL' | 'ABNORMAL' | 'CRITICAL';
+}
+
+// Settings Types
+export interface UserSettings {
+  notifications: {
+    appointments: boolean;
+    messages: boolean;
+    promotions: boolean;
+  };
+  appearance: {
+    language: 'vi' | 'en';
+    darkMode: boolean;
+  };
+  security: {
+    biometricAuth: boolean;
+    requirePassword: boolean;
+  };
+}

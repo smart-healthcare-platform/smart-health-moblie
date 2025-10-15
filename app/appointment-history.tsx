@@ -34,7 +34,7 @@ import { appointmentService } from '../src/services/appointment.service';
 import { createConversation } from '../src/services/chat.service';
 import { Appointment, AppointmentResponse } from '../src/types';
 import useDebounce from '../hooks/useDebounce';
-import { setSelectedConversationId } from '../src/redux/slices/chatSlice';
+import { setSelectedConversationId, fetchConversations } from '../src/redux/slices/chatSlice';
 
 export default function AppointmentHistoryScreen() {
   const router = useRouter();
@@ -175,6 +175,7 @@ export default function AppointmentHistoryScreen() {
 
     try {
       // Find existing conversation with this doctor
+      // Note: participant.id represents the userId of the participant
       const existingConversation = conversations.find((conv) =>
         conv.participants.some(
           (p) => p.id === appointment.doctorId && p.role === 'doctor'
@@ -183,21 +184,50 @@ export default function AppointmentHistoryScreen() {
 
       if (existingConversation) {
         // Navigate to existing conversation
+        console.log('✅ Found existing conversation:', existingConversation.id);
         dispatch(setSelectedConversationId(existingConversation.id));
         router.push(`/chat-detail/${existingConversation.id}`);
       } else {
-        // Create new conversation
-        const newConversation = await createConversation({
+        // Create new conversation (or get existing one)
+        console.log('🆕 Creating new conversation with doctor:', appointment.doctorId);
+        console.log('🔑 User ID:', user.id);
+        console.log('🔑 User role:', user.role);
+        
+        const conversationResult = await createConversation({
           recipientId: appointment.doctorId,
           recipientRole: 'doctor',
         });
 
-        dispatch(setSelectedConversationId(newConversation.id));
-        router.push(`/chat-detail/${newConversation.id}`);
+        console.log('📦 Conversation result:', conversationResult);
+        console.log('🆔 Conversation ID:', conversationResult?.id);
+
+        // Validate response
+        if (!conversationResult || !conversationResult.id) {
+          console.error('❌ Invalid conversation result:', conversationResult);
+          throw new Error('Invalid conversation response: missing conversation ID');
+        }
+
+        // Important: Reload conversations to sync with backend
+        // (Backend may have returned existing conversation or created new one)
+        console.log('🔄 Reloading conversations to sync state...');
+        await dispatch(fetchConversations()).unwrap();
+        console.log('✅ Conversations reloaded successfully');
+
+        // Set selected conversation and navigate
+        dispatch(setSelectedConversationId(conversationResult.id));
+        console.log('🚀 Navigating to chat detail:', conversationResult.id);
+        router.push(`/chat-detail/${conversationResult.id}`);
       }
-    } catch (error) {
-      console.error('Failed to start chat:', error);
-      Alert.alert('Lỗi', 'Không thể tạo cuộc trò chuyện. Vui lòng thử lại.');
+    } catch (error: any) {
+      console.error('❌ Failed to start chat:', error);
+      console.error('❌ Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+      });
+      
+      const errorMessage = error?.response?.data?.message || error?.message || 'Không thể tạo cuộc trò chuyện';
+      Alert.alert('Lỗi', `${errorMessage}. Vui lòng thử lại.`);
     }
   };
 

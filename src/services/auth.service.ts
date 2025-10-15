@@ -1,4 +1,5 @@
 import { apiNoAuth, apiAuth, apiRefresh } from '../lib/axios'
+import { ChangePasswordDto } from '../types/patient'
 
 export const authService = {
   refreshToken: async () => {
@@ -19,5 +20,17 @@ export const authService = {
       // sẽ do Redux và AsyncStorage xử lý, không cần trực tiếp xóa item.
       // localStorage.removeItem("isLogin")
     }
+  },
+  /**
+   * Change user password
+   * @param data - Password change data
+   * @returns Success message
+   */
+  changePassword: async (data: ChangePasswordDto) => {
+    const res = await apiAuth.post('/auth/change-password', {
+      oldPassword: data.oldPassword,
+      newPassword: data.newPassword,
+    });
+    return res.data;
   },
 }
