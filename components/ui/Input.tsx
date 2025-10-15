@@ -28,7 +28,7 @@ const Input: React.FC<InputProps> = ({
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
       <TextInput
-        style={[styles.input, error ? styles.errorInput : null]}
+        style={[styles.input, error ? styles.errorInput : null, { borderRadius: 14, borderWidth: 1.2, backgroundColor: '#f8fafc', paddingHorizontal: 14, fontSize: 16 }]}
         placeholder={placeholder}
         value={value}
         onChangeText={onChangeText}

@@ -51,36 +51,23 @@ export default function RootLayout() {
   return <RootLayoutNav />;
 }
 
+
 import { RootState } from '../src/redux';
 
-// Component để điều hướng dựa trên trạng thái xác thực
-function AuthenticatedApp() {
-  console.log('AppNavigator - Rendering AuthenticatedApp');
-  return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-    </Stack>
-  );
-}
-
-function UnauthenticatedApp() {
-  console.log('AppNavigator - Rendering UnauthenticatedApp');
+// AppNavigator mới: Trang chủ (tabs) luôn truy cập được, chỉ tab riêng tư mới kiểm tra đăng nhập
+function AppNavigator() {
+  const { isInitialized, token } = useSelector((state: RootState) => state.auth);
+  if (!isInitialized) {
+    return null;
+  }
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+      {/* Nếu chưa đăng nhập, vẫn cho phép truy cập (tabs), các tab riêng tư sẽ tự kiểm tra token */}
       <Stack.Screen name="(auth)" />
     </Stack>
   );
-}
-
-function AppNavigator() {
-  const { isInitialized, token } = useSelector((state: RootState) => state.auth);
-
-  if (!isInitialized) {
-    return null; // Giữ nguyên như cũ, vì splash screen đã được xử lý ở cấp cao hơn
-  }
-
-  return token ? <AuthenticatedApp /> : <UnauthenticatedApp />;
 }
 
 function RootLayoutNav() {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { register } from '../../src/redux/slices/authSlice';
@@ -11,6 +11,7 @@ import PasswordStrengthBar from '../../components/ui/PasswordStrengthBar';
 import Checkbox from '../../components/ui/Checkbox';
 import SocialButton from '../../components/ui/SocialButton';
 import { UserPlus, Shield, Activity, Eye, EyeOff, Mail, Lock, User } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function RegisterScreen() {
   const [email, setEmail] = useState('');
@@ -62,127 +63,136 @@ export default function RegisterScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={{ flex: 1 }}
     >
-      <View style={styles.backgroundDecorations}>
-        <View style={[styles.circle, { top: 40, left: 10, width: 120, height: 120, backgroundColor: '#ede9fe', opacity: 0.2 }]} />
-        <View style={[styles.circle, { top: '25%', right: 20, width: 100, height: 100, backgroundColor: '#dbeafe', opacity: 0.3 }]} />
-        <View style={[styles.circle, { bottom: 20, left: '25%', width: 160, height: 160, backgroundColor: '#d1fae5', opacity: 0.15 }]} />
-      </View>
-      <ScrollView contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled">
-        <View style={styles.contentContainer}>
-          <View style={styles.card}>
-            <View style={styles.header}>
-              <View style={styles.logoContainer}>
-                <UserPlus color="white" size={32} />
+      <LinearGradient
+        colors={["#ede9fe", "#dbeafe", "#f0fdf4"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientBg}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled">
+          <View style={styles.contentContainer}>
+            <View style={styles.card}>
+              <View style={styles.header}>
+                <LinearGradient
+                  colors={["#a855f7", "#3b82f6"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.logoContainer}
+                >
+                  <UserPlus color="white" size={36} />
+                </LinearGradient>
+                <Text style={styles.title}>Đăng Ký</Text>
+                <Text style={styles.subtitle}>Tạo tài khoản để bắt đầu hành trình sức khỏe</Text>
               </View>
-              <Text style={styles.title}>Đăng Ký</Text>
-              <Text style={styles.subtitle}>Tạo tài khoản để bắt đầu hành trình sức khỏe</Text>
+              <ErrorMessage message={error} />
+              <View style={styles.form}>
+                <Input
+                  label="Họ và tên"
+                  placeholder="Nhập họ và tên của bạn"
+                  value={fullName}
+                  onChangeText={setFullName}
+                />
+                <Input
+                  label="Tên người dùng"
+                  placeholder="Nhập tên người dùng của bạn"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                />
+                <Input
+                  label="Số điện thoại"
+                  placeholder="Nhập số điện thoại của bạn"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                />
+                <Input
+                  label="Email"
+                  placeholder="Nhập email của bạn"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <View style={styles.passwordInputContainer}>
+                  <Input
+                    label="Mật khẩu"
+                    placeholder="Tạo mật khẩu mạnh"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                  />
+                  <PasswordStrengthBar password={password} />
+                </View>
+                <View style={styles.passwordInputContainer}>
+                  <Input
+                    label="Xác nhận mật khẩu"
+                    placeholder="Nhập lại mật khẩu"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showConfirmPassword}
+                  />
+                </View>
+                <View style={{ marginTop: 8, marginBottom: 8 }}>
+                  <Checkbox
+                    checked={acceptTerms}
+                    onChange={setAcceptTerms}
+                    label="Tôi đồng ý với Điều khoản sử dụng và Chính sách bảo mật"
+                  />
+                </View>
+                <Button title={loading ? 'Đang tạo tài khoản...' : 'Tạo Tài Khoản'} onPress={handleRegister} disabled={loading} />
+                <View style={styles.orRow}>
+                  <View style={styles.orLine} />
+                  <Text style={styles.orText}>hoặc</Text>
+                  <View style={styles.orLine} />
+                </View>
+                <View style={styles.socialRow}>
+                  <SocialButton
+                    title="Facebook"
+                    color="#3b82f6"
+                    icon={<View style={{ width: 20, height: 20, backgroundColor: '#3b82f6', borderRadius: 4 }} />}
+                    onPress={() => {}}
+                  />
+                  <SocialButton
+                    title="Google"
+                    color="#ef4444"
+                    icon={<View style={{ width: 20, height: 20, backgroundColor: '#ef4444', borderRadius: 10 }} />}
+                    onPress={() => {}}
+                  />
+                </View>
+                <TouchableOpacity onPress={handleNavigateToLogin} style={styles.linkContainer}>
+                  <Text style={styles.linkText}>Đã có tài khoản? Đăng nhập ngay</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <ErrorMessage message={error} />
-            <View style={styles.form}>
-              <Input
-                label="Họ và tên"
-                placeholder="Nhập họ và tên của bạn"
-                value={fullName}
-                onChangeText={setFullName}
-              />
-              <Input
-                label="Tên người dùng"
-                placeholder="Nhập tên người dùng của bạn"
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-              />
-              <Input
-                label="Số điện thoại"
-                placeholder="Nhập số điện thoại của bạn"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-              />
-              <Input
-                label="Email"
-                placeholder="Nhập email của bạn"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <View style={styles.passwordInputContainer}>
-                <Input
-                  label="Mật khẩu"
-                  placeholder="Tạo mật khẩu mạnh"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                />
-                <PasswordStrengthBar password={password} />
+            <View style={styles.footerFeatures}>
+              <View style={{ alignItems: 'center' }}>
+                <Shield size={20} color="#a855f7" />
+                <Text style={styles.footerText}>Thông tin bảo mật</Text>
               </View>
-              <View style={styles.passwordInputContainer}>
-                <Input
-                  label="Xác nhận mật khẩu"
-                  placeholder="Nhập lại mật khẩu"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showConfirmPassword}
-                />
+              <View style={{ alignItems: 'center' }}>
+                <UserPlus size={20} color="#3b82f6" />
+                <Text style={styles.footerText}>Đăng ký miễn phí</Text>
               </View>
-              <View style={{ marginTop: 8, marginBottom: 8 }}>
-                <Checkbox
-                  checked={acceptTerms}
-                  onChange={setAcceptTerms}
-                  label="Tôi đồng ý với Điều khoản sử dụng và Chính sách bảo mật"
-                />
+              <View style={{ alignItems: 'center' }}>
+                <Activity size={20} color="#22c55e" />
+                <Text style={styles.footerText}>Hỗ trợ 24/7</Text>
               </View>
-              <Button title={loading ? 'Đang tạo tài khoản...' : 'Tạo Tài Khoản'} onPress={handleRegister} disabled={loading} />
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 16 }}>
-                <View style={{ flex: 1, height: 1, backgroundColor: '#e5e7eb' }} />
-                <Text style={{ marginHorizontal: 8, color: '#6b7280', fontSize: 13 }}>hoặc</Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: '#e5e7eb' }} />
-              </View>
-              <SocialButton
-                title="Facebook"
-                color="#3b82f6"
-                icon={<View style={{ width: 20, height: 20, backgroundColor: '#3b82f6', borderRadius: 4 }} />}
-                onPress={() => {}}
-              />
-              <SocialButton
-                title="Google"
-                color="#ef4444"
-                icon={<View style={{ width: 20, height: 20, backgroundColor: '#ef4444', borderRadius: 10 }} />}
-                onPress={() => {}}
-              />
-              <TouchableOpacity onPress={handleNavigateToLogin} style={styles.linkContainer}>
-                <Text style={styles.linkText}>Đã có tài khoản? Đăng nhập ngay</Text>
-              </TouchableOpacity>
             </View>
           </View>
-          <View style={styles.footerFeatures}>
-            <View style={{ alignItems: 'center' }}>
-              <Shield size={20} color="#a855f7" />
-              <Text style={styles.footerText}>Thông tin bảo mật</Text>
-            </View>
-            <View style={{ alignItems: 'center' }}>
-              <UserPlus size={20} color="#3b82f6" />
-              <Text style={styles.footerText}>Đăng ký miễn phí</Text>
-            </View>
-            <View style={{ alignItems: 'center' }}>
-              <Activity size={20} color="#22c55e" />
-              <Text style={styles.footerText}>Hỗ trợ 24/7</Text>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </LinearGradient>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  gradientBg: {
     flex: 1,
-    backgroundColor: '#f8fafc', // from-purple-50 via-white to-blue-50
+    minHeight: Dimensions.get('window').height,
   },
   scrollContentContainer: {
     flexGrow: 1,
@@ -228,8 +238,8 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 36,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.13,
@@ -245,14 +255,40 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   logoContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 16, // rounded-2xl
+    width: 72,
+    height: 72,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
-    // For gradient, consider using a library like `react-native-linear-gradient`
-    backgroundColor: '#a855f7', // Temporary solid color for gradient from-purple-500 to-blue-500
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  orRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  orLine: {
+    flex: 1,
+    height: 1.2,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 2,
+  },
+  orText: {
+    marginHorizontal: 10,
+    color: '#6b7280',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  socialRow: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   title: {
     fontSize: 30,

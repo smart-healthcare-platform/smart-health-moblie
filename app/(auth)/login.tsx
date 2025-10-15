@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../../src/redux/slices/authSlice';
@@ -9,6 +9,7 @@ import Input from '../../components/ui/Input';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import SocialButton from '../../components/ui/SocialButton';
 import { Heart, Eye, EyeOff } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -26,12 +27,22 @@ export default function LoginScreen() {
 
     try {
       const resultAction = await dispatch(login({ email, password }));
+      
+      // Debug: Log login response
+      console.log('=== Login Debug ===');
+      console.log('Result Action:', resultAction);
       if (login.fulfilled.match(resultAction)) {
+        console.log('Login successful!');
+        console.log('Token:', resultAction.payload.token);
+        console.log('User:', resultAction.payload.user);
+        console.log('==================');
+        
         Alert.alert('Thành công', 'Đăng nhập thành công!', [
           { text: 'OK', onPress: () => router.replace('/(tabs)') }
         ]);
       }
     } catch (err: any) {
+      console.error('Login error:', err);
       Alert.alert('Lỗi', err?.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
     }
   };
@@ -43,87 +54,92 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={{ flex: 1 }}
     >
-      {/* Background decorative elements */}
-      <View style={styles.backgroundDecorations}>
-        <View style={[styles.circle, { top: 40, left: 10, width: 120, height: 120, backgroundColor: '#dbeafe', opacity: 0.2 }]} />
-        <View style={[styles.circle, { top: '25%', right: 20, width: 100, height: 100, backgroundColor: '#d1fae5', opacity: 0.3 }]} />
-        <View style={[styles.circle, { bottom: 20, left: '25%', width: 160, height: 160, backgroundColor: '#ede9fe', opacity: 0.15 }]} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContentContainer}>
-        <View style={styles.contentContainer}>
-          <View style={styles.card}>
-            <View style={styles.header}>
-              <View style={styles.logoContainer}>
-                <Heart color="white" size={32} />
+      <LinearGradient
+        colors={["#e0e7ff", "#f0fdf4", "#f8fafc"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientBg}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled">
+          <View style={styles.contentContainer}>
+            <View style={styles.card}>
+              <View style={styles.header}>
+                <LinearGradient
+                  colors={["#3b82f6", "#059669"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.logoContainer}
+                >
+                  <Heart color="white" size={36} />
+                </LinearGradient>
+                <Text style={styles.title}>Đăng Nhập</Text>
+                <Text style={styles.subtitle}>Chăm sóc sức khỏe thông minh của bạn</Text>
               </View>
-              <Text style={styles.title}>Đăng Nhập</Text>
-              <Text style={styles.subtitle}>Chăm sóc sức khỏe thông minh của bạn</Text>
-            </View>
-
-            <ErrorMessage message={error} />
-
-            <View style={styles.form}>
-              <Input
-                label="Email"
-                placeholder="Nhập email của bạn"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                error={error ? 'Email hoặc mật khẩu không đúng.' : undefined}
-              />
-              <View style={styles.passwordInputContainer}>
+              <ErrorMessage message={error} />
+              <View style={styles.form}>
                 <Input
-                  label="Mật khẩu"
-                  placeholder="Nhập mật khẩu của bạn"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
+                  label="Email"
+                  placeholder="Nhập email của bạn"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
                   error={error ? 'Email hoặc mật khẩu không đúng.' : undefined}
                 />
-                <TouchableOpacity
-                  style={styles.eyeIcon}
-                  onPress={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff color="#4b5563" size={18} /> : <Eye color="#4b5563" size={18} />}
+                <View style={styles.passwordInputContainer}>
+                  <Input
+                    label="Mật khẩu"
+                    placeholder="Nhập mật khẩu của bạn"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    error={error ? 'Email hoặc mật khẩu không đúng.' : undefined}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeIcon}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff color="#4b5563" size={20} /> : <Eye color="#4b5563" size={20} />}
+                  </TouchableOpacity>
+                </View>
+                <Button title={loading ? 'Đang đăng nhập...' : 'Đăng Nhập'} onPress={handleLogin} disabled={loading} />
+                <View style={styles.orRow}>
+                  <View style={styles.orLine} />
+                  <Text style={styles.orText}>hoặc</Text>
+                  <View style={styles.orLine} />
+                </View>
+                <View style={styles.socialRow}>
+                  <SocialButton
+                    title="Facebook"
+                    color="#3b82f6"
+                    icon={<View style={{ width: 20, height: 20, backgroundColor: '#3b82f6', borderRadius: 4 }} />}
+                    onPress={() => {}}
+                  />
+                  <SocialButton
+                    title="Google"
+                    color="#ef4444"
+                    icon={<View style={{ width: 20, height: 20, backgroundColor: '#ef4444', borderRadius: 10 }} />}
+                    onPress={() => {}}
+                  />
+                </View>
+                <TouchableOpacity onPress={handleNavigateToRegister} style={styles.linkContainer}>
+                  <Text style={styles.linkText}>Chưa có tài khoản? Đăng ký ngay</Text>
                 </TouchableOpacity>
               </View>
-              <Button title={loading ? 'Đang đăng nhập...' : 'Đăng Nhập'} onPress={handleLogin} disabled={loading} />
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 16 }}>
-                <View style={{ flex: 1, height: 1, backgroundColor: '#e5e7eb' }} />
-                <Text style={{ marginHorizontal: 8, color: '#6b7280', fontSize: 13 }}>hoặc</Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: '#e5e7eb' }} />
-              </View>
-              <SocialButton
-                title="Facebook"
-                color="#3b82f6"
-                icon={<View style={{ width: 20, height: 20, backgroundColor: '#3b82f6', borderRadius: 4 }} />}
-                onPress={() => {}}
-              />
-              <SocialButton
-                title="Google"
-                color="#ef4444"
-                icon={<View style={{ width: 20, height: 20, backgroundColor: '#ef4444', borderRadius: 10 }} />}
-                onPress={() => {}}
-              />
-              <TouchableOpacity onPress={handleNavigateToRegister} style={styles.linkContainer}>
-                <Text style={styles.linkText}>Chưa có tài khoản? Đăng ký ngay</Text>
-              </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </LinearGradient>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
- container: {
+ gradientBg: {
     flex: 1,
-    backgroundColor: '#eff6ff', // from-blue-50
+    minHeight: Dimensions.get('window').height,
   },
   scrollContentContainer: {
     flexGrow: 1,
@@ -155,8 +171,8 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 36,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.13,
@@ -173,14 +189,48 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   logoContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 16, // rounded-2xl
+    width: 72,
+    height: 72,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
-    // For gradient, consider using a library like `react-native-linear-gradient`
-    backgroundColor: '#3b82f6', // blue-500
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  input: {
+    borderRadius: 14,
+    borderWidth: 1.2,
+    borderColor: '#d1d5db',
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 14,
+    fontSize: 16,
+  },
+  orRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  orLine: {
+    flex: 1,
+    height: 1.2,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 2,
+  },
+  orText: {
+    marginHorizontal: 10,
+    color: '#6b7280',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  socialRow: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   title: {
     fontSize: 30,

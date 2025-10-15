@@ -1,6 +1,8 @@
 import { User } from "../../types/auth";
 import { createSlice, PayloadAction, createAsyncThunk } from "@reduxjs/toolkit";
 import { authService } from "../../services/auth.service";
+import { patientService } from "../../services/patient.service";
+import { apiNoAuth } from "../../lib/axios";
 
 // Định nghĩa kiểu cho dữ liệu đăng nhập
 interface LoginCredentials {
@@ -29,9 +31,42 @@ export const login = createAsyncThunk(
   async ({ email, password }: LoginCredentials, { rejectWithValue }) => {
     try {
       const response = await authService.login(email, password);
-      return response as LoginResponse; // Trả về dữ liệu đăng nhập
+      const { token, user } = response as LoginResponse;
+      
+      // Fetch profile data based on user role (matching website pattern)
+      if (user.role === "PATIENT") {
+        try {
+          const patientRes = await apiNoAuth.get(`/patients/by-user/${user.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          const patient = patientRes.data.data;
+          
+          // Return enhanced user with profile
+          return {
+            token,
+            user: {
+              ...user,
+              role: "PATIENT" as const,
+              referenceId: patient.id,
+              profile: {
+                fullName: patient.full_name,
+                gender: patient.gender,
+                address: patient.address,
+                dateOfBirth: patient.date_of_birth
+              }
+            }
+          };
+        } catch (profileError: any) {
+          console.log('Patient profile not found, using basic user info');
+          // If profile fetch fails, return user without profile
+          return { token, user };
+        }
+      }
+      
+      // For non-patient roles, return as-is
+      return { token, user };
     } catch (error: any) {
-      // Trả về lỗi để có thể xử lý ở component
       return rejectWithValue(
         error.response?.data?.message || "Đăng nhập thất bại"
       );
