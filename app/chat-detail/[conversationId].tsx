@@ -43,7 +43,7 @@ export default function ChatDetailScreen() {
   
   const conversation = conversations.find((c) => c.id === conversationId);
   const otherParticipant = conversation?.participants?.find(
-    (p) => p.id && p.id !== user?.id
+    (p) => p.userId && p.userId !== user?.id
   );
 
   // Fetch messages when conversation is selected
@@ -109,7 +109,7 @@ export default function ChatDetailScreen() {
     dispatch(addMessage({ conversationId, message: newMessage }));
     setMessageInput('');
 
-    const recipientId = otherParticipant ? otherParticipant.id : '';
+    const recipientId = otherParticipant ? otherParticipant.userId : '';
 
     // Send via Socket.IO
     if (socket.socket) {

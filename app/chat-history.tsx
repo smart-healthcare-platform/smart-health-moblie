@@ -20,7 +20,7 @@ import { useSocket } from '@/hooks/useSocket';
 
 interface Conversation {
   id: string;
-  participants: { id: string; fullName: string; role: string }[];
+  participants: { userId: string; fullName: string; role: string }[];
   lastMessage?: {
     content: string;
     createdAt: string;
@@ -45,6 +45,25 @@ export default function ChatHistoryScreen() {
     }
   }, [dispatch, user?.id]);
 
+  // Debug: Log conversations when they change
+  useEffect(() => {
+    if (conversations.length > 0) {
+      console.log('=== Chat History Debug ===');
+      console.log('Current user ID:', user?.id);
+      console.log('Total conversations:', conversations.length);
+      conversations.forEach((conv, idx) => {
+        console.log(`Conversation ${idx + 1}:`, {
+          id: conv.id,
+          participants: conv.participants,
+          participantUserIds: conv.participants?.map(p => p.userId),
+        });
+        const other = conv.participants?.find((p) => p.userId && p.userId !== user?.id);
+        console.log(`  -> Other participant:`, other);
+      });
+      console.log('========================');
+    }
+  }, [conversations, user?.id]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await dispatch(fetchConversations());
@@ -57,7 +76,8 @@ export default function ChatHistoryScreen() {
   };
 
   const getOtherParticipant = (conversation: Conversation) => {
-    return conversation.participants?.find((p) => p.id && p.id !== user?.id);
+    // Backend returns 'userId' field, not 'id'
+    return conversation.participants?.find((p) => p.userId && p.userId !== user?.id);
   };
 
   const formatTime = (dateString: string) => {

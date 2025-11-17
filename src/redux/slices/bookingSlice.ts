@@ -34,7 +34,8 @@ const initialState: BookingState = {
     gender: "",
     address: "",
     notes: "",
-    type:""
+    type: "",
+    followUpId: undefined,
   },
 };
 

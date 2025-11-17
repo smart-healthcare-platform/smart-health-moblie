@@ -11,6 +11,7 @@ import {
   Modal,
   ScrollView,
   Alert,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -25,6 +26,8 @@ import {
   X,
   Eye,
   MessageCircle,
+  CreditCard,
+  ExternalLink,
 } from 'lucide-react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
@@ -32,9 +35,23 @@ import { Picker } from '@react-native-picker/picker';
 import { RootState, AppDispatch } from '../src/redux';
 import { appointmentService } from '../src/services/appointment.service';
 import { createConversation } from '../src/services/chat.service';
-import { Appointment, AppointmentResponse } from '../src/types';
+import { Appointment, AppointmentResponse } from '../src/types/appointment';
 import useDebounce from '../hooks/useDebounce';
 import { setSelectedConversationId, fetchConversations } from '../src/redux/slices/chatSlice';
+import {
+  getAppointmentTypeDisplay,
+  getStatusDisplayText,
+  getStatusColor,
+  getStatusBackgroundColor,
+  formatDateTime,
+  formatDate,
+  formatTime,
+  formatCurrency,
+  canMessageDoctor,
+  canCancelAppointment,
+  getPaymentStatusDisplayText,
+  getPaymentStatusColor,
+} from '../src/utils/appointment.helpers';
 
 export default function AppointmentHistoryScreen() {
   const router = useRouter();
@@ -55,6 +72,9 @@ export default function AppointmentHistoryScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [showPaymentMethods, setShowPaymentMethods] = useState(false);
+  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
+  const [paymentAppointmentId, setPaymentAppointmentId] = useState<string | null>(null);
 
   const limit = 10;
   const debouncedSearch = useDebounce(filters.search, 500);
@@ -108,44 +128,8 @@ export default function AppointmentHistoryScreen() {
     cancelled: apiData?.appointments.filter((a) => a.status === 'cancelled').length || 0,
   };
 
-  // Status config
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return { label: 'Đã hoàn thành', color: '#10b981' };
-      case 'confirmed':
-        return { label: 'Đã xác nhận', color: '#3b82f6' };
-      case 'pending':
-        return { label: 'Chờ xác nhận', color: '#f59e0b' };
-      case 'in-progress':
-        return { label: 'Đang khám', color: '#8b5cf6' };
-      case 'cancelled':
-        return { label: 'Đã hủy', color: '#ef4444' };
-      case 'no-show':
-        return { label: 'Không đến', color: '#6b7280' };
-      default:
-        return { label: 'Không xác định', color: '#9ca3af' };
-    }
-  };
 
-  // Format date/time
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'numeric',
-      year: 'numeric',
-    });
-  };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   // Handle search
   const handleSearchChange = (text: string) => {
@@ -167,7 +151,7 @@ export default function AppointmentHistoryScreen() {
   };
 
   // Start chat with doctor
-  const handleStartChat = async (appointment: Appointment) => {
+  const handleMessageDoctor = async (appointment: Appointment) => {
     if (!user?.id || !appointment.doctorId) {
       Alert.alert('Lỗi', 'Không thể bắt đầu cuộc trò chuyện');
       return;
@@ -175,10 +159,10 @@ export default function AppointmentHistoryScreen() {
 
     try {
       // Find existing conversation with this doctor
-      // Note: participant.id represents the userId of the participant
+      // Note: Backend returns 'userId' field, not 'id'
       const existingConversation = conversations.find((conv) =>
         conv.participants.some(
-          (p) => p.id === appointment.doctorId && p.role === 'doctor'
+          (p) => p.userId === appointment.doctorId && p.role === 'doctor'
         )
       );
 
@@ -233,8 +217,6 @@ export default function AppointmentHistoryScreen() {
 
   // Render appointment card
   const renderAppointment = ({ item }: { item: Appointment }) => {
-    const statusConfig = getStatusConfig(item.status);
-
     return (
       <TouchableOpacity
         style={styles.appointmentCard}
@@ -242,12 +224,12 @@ export default function AppointmentHistoryScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.cardHeader}>
-          <View style={styles.statusBadge} >
-            <View style={[styles.statusDot, { backgroundColor: statusConfig.color }]} />
-            <Text style={styles.statusText}>{statusConfig.label}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusBackgroundColor(item.status) }]} >
+            <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
+            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>{getStatusDisplayText(item.status)}</Text>
           </View>
           <View style={styles.typeBadge}>
-            <Text style={styles.typeText}>{item.type}</Text>
+            <Text style={styles.typeText}>{getAppointmentTypeDisplay(item.type, item.category)}</Text>
           </View>
         </View>
 
@@ -255,41 +237,133 @@ export default function AppointmentHistoryScreen() {
 
         <View style={styles.cardInfo}>
           <View style={styles.infoRow}>
-            <Calendar size={16} color="#6b7280" />
-            <Text style={styles.infoText}>{formatDate(item.startAt)}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Clock size={16} color="#6b7280" />
-            <Text style={styles.infoText}>{formatTime(item.startAt)}</Text>
+            <Clock size={14} color="#6b7280" />
+            <Text style={styles.infoText}>{formatDateTime(item.startAt)}</Text>
           </View>
         </View>
 
-        {(item.status === 'completed' || item.status === 'confirmed') && (
-          <View style={styles.cardActions}>
+        {/* Payment Info Card */}
+        {renderPaymentInfo(item)}
+
+        {/* Action Buttons */}
+        <View style={styles.cardActions}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleViewDetail(item);
+            }}
+          >
+            <Eye size={16} color="#10b981" />
+            <Text style={styles.actionButtonText}>Chi tiết</Text>
+          </TouchableOpacity>
+          {canMessageDoctor(item.status) && (
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionButton, styles.chatButton]}
               onPress={(e) => {
                 e.stopPropagation();
-                handleViewDetail(item);
+                handleMessageDoctor(item);
               }}
             >
-              <Eye size={16} color="#10b981" />
-              <Text style={styles.actionButtonText}>Chi tiết</Text>
+              <MessageCircle size={16} color="#ffffff" />
+              <Text style={styles.chatButtonText}>Bắt đầu trò chuyện</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleStartChat(item);
-              }}
-            >
-              <MessageCircle size={16} color="#3b82f6" />
-              <Text style={styles.actionButtonText}>Nhắn tin</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
       </TouchableOpacity>
     );
+  };
+
+  // Handle create payment
+  const handleCreatePayment = async (method: 'MOMO' | 'VNPAY') => {
+    if (!paymentAppointmentId) return;
+    
+    setIsCreatingPayment(true);
+    try {
+      const result = await appointmentService.createPayment(paymentAppointmentId, method);
+      setShowPaymentMethods(false);
+      
+      // Open payment URL
+      const supported = await Linking.canOpenURL(result.paymentUrl);
+      if (supported) {
+        await Linking.openURL(result.paymentUrl);
+      } else {
+        Alert.alert('Lỗi', 'Không thể mở link thanh toán');
+      }
+      
+      // Refresh data
+      await fetchAppointments();
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.message || 'Không thể tạo yêu cầu thanh toán');
+    } finally {
+      setIsCreatingPayment(false);
+    }
+  };
+
+  // Render payment info
+  const renderPaymentInfo = (appointment: Appointment) => {
+
+    if (appointment.paymentStatus === 'UNPAID') {
+      return (
+        <View style={styles.paymentCard}>
+          <TouchableOpacity
+            style={styles.paymentButton}
+            onPress={() => {
+              setPaymentAppointmentId(appointment.id);
+              setShowPaymentMethods(true);
+            }}
+          >
+            <CreditCard size={16} color="#ffffff" />
+            <Text style={styles.paymentButtonText}>Thanh toán ngay</Text>
+          </TouchableOpacity>
+          <Text style={styles.paymentHint}>💡 Thanh toán trước để tiết kiệm thời gian</Text>
+        </View>
+      );
+    }
+
+    if (appointment.paymentStatus === 'PENDING') {
+      return (
+        <View style={[styles.paymentCard, styles.paymentPending]}>
+          <View style={styles.pendingHeader}>
+            <Clock size={16} color="#f59e0b" />
+            <Text style={styles.pendingTitle}>Đang chờ thanh toán</Text>
+          </View>
+          <Text style={styles.pendingDesc}>
+            Link thanh toán có hiệu lực 30 phút. Nếu hết hạn, vui lòng tạo link mới.
+          </Text>
+          <View style={styles.pendingActions}>
+            {appointment.paymentUrl && (
+              <TouchableOpacity
+                style={styles.openLinkButton}
+                onPress={() => Linking.openURL(appointment.paymentUrl!)}
+              >
+                <ExternalLink size={14} color="#f59e0b" />
+                <Text style={styles.openLinkText}>Mở link thanh toán</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      );
+    }
+
+    if (appointment.paymentStatus === 'PAID') {
+      return (
+        <View style={[styles.paymentCard, styles.paymentPaid]}>
+          <View style={styles.paidHeader}>
+            <CheckCircle size={16} color="#10b981" />
+            <Text style={styles.paidTitle}>Đã thanh toán</Text>
+            <Text style={styles.paidAmount}>
+              {formatCurrency(appointment.paidAmount || 0)}
+            </Text>
+          </View>
+          {appointment.paidAt && (
+            <Text style={styles.paidDate}>{formatDateTime(appointment.paidAt)}</Text>
+          )}
+        </View>
+      );
+    }
+
+    return null;
   };
 
   // Render empty
@@ -497,19 +571,41 @@ export default function AppointmentHistoryScreen() {
                     <View
                       style={[
                         styles.modalStatusBadge,
-                        { backgroundColor: getStatusConfig(selectedAppointment.status).color },
+                        { backgroundColor: getStatusColor(selectedAppointment.status) },
                       ]}
                     >
                       <Text style={styles.modalStatusText}>
-                        {getStatusConfig(selectedAppointment.status).label}
+                        {getStatusDisplayText(selectedAppointment.status)}
                       </Text>
                     </View>
                   </View>
 
                   <View style={styles.modalSection}>
                     <Text style={styles.modalSectionTitle}>Loại dịch vụ</Text>
-                    <Text style={styles.modalInfoText}>{selectedAppointment.type}</Text>
+                    <Text style={styles.modalInfoText}>
+                      {getAppointmentTypeDisplay(selectedAppointment.type, selectedAppointment.category)}
+                    </Text>
                   </View>
+
+                  {selectedAppointment.consultationFee && (
+                    <View style={styles.modalSection}>
+                      <Text style={styles.modalSectionTitle}>Chi phí</Text>
+                      <Text style={styles.modalInfoText}>
+                        {formatCurrency(selectedAppointment.consultationFee)}
+                      </Text>
+                    </View>
+                  )}
+
+                  {selectedAppointment.paymentStatus && (
+                    <View style={styles.modalSection}>
+                      <Text style={styles.modalSectionTitle}>Trạng thái thanh toán</Text>
+                      <Text style={[styles.modalInfoText, { color: getStatusColor(selectedAppointment.paymentStatus) }]}>
+                        {selectedAppointment.paymentStatus === 'PAID' ? 'Đã thanh toán' : 
+                         selectedAppointment.paymentStatus === 'UNPAID' ? 'Chưa thanh toán' : 
+                         selectedAppointment.paymentStatus}
+                      </Text>
+                    </View>
+                  )}
 
                   {selectedAppointment.notes && (
                     <View style={styles.modalSection}>
@@ -526,6 +622,58 @@ export default function AppointmentHistoryScreen() {
               onPress={() => setDetailModalVisible(false)}
             >
               <Text style={styles.modalCloseButtonText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Payment Method Modal */}
+      <Modal
+        visible={showPaymentMethods}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPaymentMethods(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.paymentMethodModal}>
+            <Text style={styles.paymentMethodTitle}>Chọn phương thức thanh toán</Text>
+            <Text style={styles.paymentMethodSubtitle}>
+              Phí khám bệnh: {formatCurrency(200000)}
+            </Text>
+
+            <TouchableOpacity
+              style={styles.methodCard}
+              onPress={() => handleCreatePayment('MOMO')}
+              disabled={isCreatingPayment}
+            >
+              <View style={[styles.methodIcon, { backgroundColor: '#d82d8b' }]}>
+                <Text style={styles.methodIconText}>M</Text>
+              </View>
+              <View style={styles.methodInfo}>
+                <Text style={styles.methodName}>Ví MoMo</Text>
+                <Text style={styles.methodDesc}>Thanh toán qua ví điện tử MoMo</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.methodCard}
+              onPress={() => handleCreatePayment('VNPAY')}
+              disabled={isCreatingPayment}
+            >
+              <View style={[styles.methodIcon, { backgroundColor: '#0066b2' }]}>
+                <Text style={styles.methodIconText}>VP</Text>
+              </View>
+              <View style={styles.methodInfo}>
+                <Text style={styles.methodName}>VNPay</Text>
+                <Text style={styles.methodDesc}>Thanh toán qua cổng VNPay</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowPaymentMethods(false)}
+            >
+              <Text style={styles.cancelButtonText}>Hủy</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -767,21 +915,206 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   cardActions: {
-    flexDirection: 'row',
-    gap: 12,
+    flexDirection: 'column',
+    gap: 8,
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
     paddingTop: 12,
+    marginTop: 12,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#fff',
   },
   actionButtonText: {
     fontSize: 14,
-    fontWeight: '600',
     color: '#374151',
+    fontWeight: '500',
+  },
+  chatButton: {
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
+  },
+  chatButtonText: {
+    fontSize: 14,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  paymentCard: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  paymentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#10b981',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  paymentButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  paymentHint: {
+    fontSize: 11,
+    color: '#6b7280',
+    marginTop: 8,
+  },
+  paymentPending: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#fcd34d',
+  },
+  pendingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  pendingTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#f59e0b',
+  },
+  pendingDesc: {
+    fontSize: 12,
+    color: '#d97706',
+    marginBottom: 12,
+  },
+  pendingActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  openLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+    backgroundColor: '#fff',
+  },
+  openLinkText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#f59e0b',
+  },
+  paymentPaid: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#86efac',
+  },
+  paidHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  paidTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#10b981',
+    flex: 1,
+  },
+  paidAmount: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#047857',
+  },
+  paidDate: {
+    fontSize: 11,
+    color: '#059669',
+    marginTop: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paymentMethodModal: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: '85%',
+    maxWidth: 400,
+  },
+  paymentMethodTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  paymentMethodSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 20,
+  },
+  methodCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#fff',
+    marginBottom: 12,
+  },
+  methodIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  methodIconText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  methodInfo: {
+    flex: 1,
+  },
+  methodName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 2,
+  },
+  methodDesc: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  cancelButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginTop: 8,
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
+    textAlign: 'center',
   },
   emptyContainer: {
     paddingVertical: 60,

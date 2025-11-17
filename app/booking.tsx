@@ -24,7 +24,7 @@ import {
 import { RootState } from '../src/redux';
 import { resetBooking, setDate, setSlot, setFormData } from '../src/redux/slices/bookingSlice';
 import { appointmentService } from '../src/services/appointment.service';
-import { CreateAppointmentPayload } from '../src/types';
+import { CreateAppointmentPayload } from '../src/types/appointment';
 import { useBookingValidation } from '../hooks/booking/useBookingValidation';
 
 // Lazy import components
@@ -99,23 +99,53 @@ export default function BookingScreen() {
     }
 
     setLoading(true);
+    
+    // Get patient info from user
+    const patientId = user.referenceId || user.id;
+    const patientName = formData.fullName || (user.role === 'PATIENT' && user.profile?.fullName) || '';
+    
+    // Validate patient name is provided
+    if (!patientName || patientName.trim() === '') {
+      Alert.alert('Lỗi', 'Vui lòng nhập họ tên bệnh nhân');
+      setLoading(false);
+      return;
+    }
+    
+    // Map Vietnamese category labels to backend enums
+    const appointmentCategory = formData.type === 'Tái khám' ? 'FOLLOW_UP' : 'NEW';
+    
     const payload: CreateAppointmentPayload = {
       doctorId: doctor.id,
-      slotId: slot_id,
-      userId: user.id,
-      date: new Date(slot_start_time).toISOString(),
-      type: 'Khám bệnh',
-      notes: formData.notes || '',
       doctorName: doctor.display_name || doctor.full_name,
+      slotId: slot_id,
       startAt: slot_start_time,
+      patientId: patientId,
+      patientName: patientName,
+      type: 'OFFLINE', // Mobile app only supports offline appointments
+      category: appointmentCategory,
+      notes: formData.notes || '',
+      followUpId: formData.followUpId,
     };
+
+    console.log('=== Booking Payload ===');
+    console.log('Doctor:', { id: doctor.id, name: doctor.display_name || doctor.full_name });
+    console.log('Patient:', { id: patientId, name: patientName });
+    console.log('Slot:', { id: slot_id, startAt: slot_start_time });
+    console.log('Full payload:', JSON.stringify(payload, null, 2));
+    console.log('=====================');
 
     try {
       await appointmentService.create(payload);
       dispatch(resetBooking());
       setSuccessModalVisible(true);
     } catch (err: any) {
-      console.error('Booking error:', err);
+      console.error('=== Booking Error Details ===');
+      console.error('Error:', err);
+      console.error('Response status:', err.response?.status);
+      console.error('Response data:', JSON.stringify(err.response?.data, null, 2));
+      console.error('Response headers:', err.response?.headers);
+      console.error('Request payload was:', JSON.stringify(payload, null, 2));
+      console.error('============================');
       
       // Enhanced error messages
       let errorTitle = 'Lỗi đặt lịch';
