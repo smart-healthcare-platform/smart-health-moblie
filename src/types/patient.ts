@@ -96,8 +96,9 @@ export interface PatientFormData {
   birthDate: string;
   gender: string;
   address: string;
-  notes:string
-  type:string
+  notes: string;
+  type: string;
+  followUpId?: string;
 }
 
 // Profile Update DTOs
