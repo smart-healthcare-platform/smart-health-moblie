@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "380705781611",
+    "project_id": "vv-smart-health",
+    "storage_bucket": "vv-smart-health.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:380705781611:android:a2e86c8fabf3ed5a3afe2e",
+        "android_client_info": {
+          "package_name": "com.smarthealth.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBs0P0kcgcZ9lydFc8NeqfnPXzLWpRw4K0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
