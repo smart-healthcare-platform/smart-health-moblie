@@ -19,20 +19,44 @@ export default function PatientInfoForm({
   onNotesChange,
 }: PatientInfoFormProps) {
   const hasCompleteProfile = formData.fullName && formData.birthDate && formData.gender;
+  const hasPhone = formData.phone && formData.phone.trim() !== '';
+  const isProfileIncomplete = !hasCompleteProfile || !hasPhone;
   
   const getGenderDisplay = (gender: string) => {
+    if (gender === 'MALE') return 'Nam';
+    if (gender === 'FEMALE') return 'Nữ';
     if (gender === 'male') return 'Nam';
     if (gender === 'female') return 'Nữ';
     return 'Khác';
   };
 
+  const getMissingFields = () => {
+    const missing: string[] = [];
+    if (!formData.fullName) missing.push('Họ và tên');
+    if (!formData.phone) missing.push('Số điện thoại');
+    if (!formData.birthDate) missing.push('Ngày sinh');
+    if (!formData.gender) missing.push('Giới tính');
+    return missing;
+  };
+
   return (
     <View style={styles.formCard}>
       {/* Warning if profile is incomplete */}
-      {!hasCompleteProfile && (
+      {isProfileIncomplete && (
         <View style={styles.warningBox}>
+          <Text style={styles.warningTitle}>⚠️ Thông tin chưa đầy đủ</Text>
           <Text style={styles.warningText}>
-            ⚠️ Hồ sơ của bạn chưa hoàn chỉnh. Vui lòng cập nhật đầy đủ thông tin trong phần Hồ sơ cá nhân để đặt lịch khám.
+            Bạn cần cập nhật các thông tin sau trong Hồ sơ cá nhân để có thể đặt lịch khám:
+          </Text>
+          <View style={styles.missingFieldsList}>
+            {getMissingFields().map((field, index) => (
+              <Text key={index} style={styles.missingFieldItem}>
+                • {field}
+              </Text>
+            ))}
+          </View>
+          <Text style={styles.warningAction}>
+            👉 Vào Hồ sơ cá nhân → Chỉnh sửa thông tin
           </Text>
         </View>
       )}
@@ -54,8 +78,10 @@ export default function PatientInfoForm({
           <Phone size={16} color="#10b981" />
           <Text style={styles.label}>Số điện thoại *</Text>
         </View>
-        <View style={styles.inputDisabled}>
-          <Text style={styles.inputText}>{formData.phone || '---'}</Text>
+        <View style={[styles.inputDisabled, !hasPhone && styles.inputError]}>
+          <Text style={[styles.inputText, !hasPhone && styles.inputTextError]}>
+            {formData.phone || '⚠️ Chưa cập nhật'}
+          </Text>
         </View>
       </View>
 
@@ -193,10 +219,41 @@ const styles = StyleSheet.create({
     borderLeftColor: '#f59e0b',
     marginBottom: 16,
   },
+  warningTitle: {
+    fontSize: 14,
+    color: '#92400e',
+    fontWeight: '700',
+    marginBottom: 8,
+  },
   warningText: {
     fontSize: 13,
     color: '#92400e',
     lineHeight: 18,
-    fontWeight: '500',
+    marginBottom: 8,
+  },
+  missingFieldsList: {
+    marginLeft: 8,
+    marginBottom: 8,
+  },
+  missingFieldItem: {
+    fontSize: 13,
+    color: '#92400e',
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  warningAction: {
+    fontSize: 13,
+    color: '#92400e',
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  inputError: {
+    borderColor: '#f87171',
+    borderWidth: 2,
+    backgroundColor: '#fef2f2',
+  },
+  inputTextError: {
+    color: '#dc2626',
+    fontWeight: '600',
   },
 });
