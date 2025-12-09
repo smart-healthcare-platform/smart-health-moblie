@@ -58,9 +58,9 @@ export function useTimeSlots(doctorId: string | null | undefined, selectedDate: 
       return;
     }
 
-    const dateStr = selectedDate.split('T')[0];
+    // selectedDate is already in "YYYY-MM-DD" format (no timezone)
     const slotsForDay = allSlots
-      .filter((s) => s.date === dateStr)
+      .filter((s) => s.date === selectedDate)
       .sort((a, b) => a.time.localeCompare(b.time));
 
     setTimeSlots(slotsForDay);
