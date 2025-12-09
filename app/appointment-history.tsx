@@ -25,6 +25,7 @@ import {
   X,
   Eye,
   MessageCircle,
+  DollarSign,
 } from 'lucide-react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'expo-router';
@@ -33,8 +34,16 @@ import { RootState, AppDispatch } from '../src/redux';
 import { appointmentService } from '../src/services/appointment.service';
 import { createConversation } from '../src/services/chat.service';
 import { Appointment, AppointmentResponse } from '../src/types';
+import { AppointmentStatus } from '../src/types/appointment-enums';
 import useDebounce from '../hooks/useDebounce';
 import { setSelectedConversationId, fetchConversations } from '../src/redux/slices/chatSlice';
+import {
+  getStatusConfig,
+  getPaymentStatusLabel,
+  getPaymentStatusColor,
+  formatAppointmentDateTime,
+  canStartChat,
+} from '../src/lib/appointmentHelpers';
 
 export default function AppointmentHistoryScreen() {
   const router = useRouter();
@@ -103,49 +112,12 @@ export default function AppointmentHistoryScreen() {
   // Stats
   const stats = {
     total: apiData?.total || 0,
-    completed: apiData?.appointments.filter((a) => a.status === 'completed').length || 0,
-    confirmed: apiData?.appointments.filter((a) => a.status === 'confirmed').length || 0,
-    cancelled: apiData?.appointments.filter((a) => a.status === 'cancelled').length || 0,
+    completed: apiData?.appointments.filter((a) => a.status === AppointmentStatus.COMPLETED).length || 0,
+    confirmed: apiData?.appointments.filter((a) => a.status === AppointmentStatus.CONFIRMED).length || 0,
+    cancelled: apiData?.appointments.filter((a) => a.status === AppointmentStatus.CANCELLED).length || 0,
   };
 
-  // Status config
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return { label: 'Đã hoàn thành', color: '#10b981' };
-      case 'confirmed':
-        return { label: 'Đã xác nhận', color: '#3b82f6' };
-      case 'pending':
-        return { label: 'Chờ xác nhận', color: '#f59e0b' };
-      case 'in-progress':
-        return { label: 'Đang khám', color: '#8b5cf6' };
-      case 'cancelled':
-        return { label: 'Đã hủy', color: '#ef4444' };
-      case 'no-show':
-        return { label: 'Không đến', color: '#6b7280' };
-      default:
-        return { label: 'Không xác định', color: '#9ca3af' };
-    }
-  };
 
-  // Format date/time
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   // Handle search
   const handleSearchChange = (text: string) => {
@@ -234,6 +206,7 @@ export default function AppointmentHistoryScreen() {
   // Render appointment card
   const renderAppointment = ({ item }: { item: Appointment }) => {
     const statusConfig = getStatusConfig(item.status);
+    const { date: formattedDate, time: formattedTime } = formatAppointmentDateTime(item.startAt);
 
     return (
       <TouchableOpacity
@@ -242,29 +215,36 @@ export default function AppointmentHistoryScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.cardHeader}>
-          <View style={styles.statusBadge} >
+          <View style={[styles.statusBadge, { backgroundColor: `${statusConfig.color}20` }]}>
             <View style={[styles.statusDot, { backgroundColor: statusConfig.color }]} />
-            <Text style={styles.statusText}>{statusConfig.label}</Text>
-          </View>
-          <View style={styles.typeBadge}>
-            <Text style={styles.typeText}>{item.type}</Text>
+            <Text style={[styles.statusText, { color: statusConfig.color }]}>
+              {statusConfig.label}
+            </Text>
           </View>
         </View>
 
-        <Text style={styles.doctorName}>{item.doctorName}</Text>
+        <Text style={styles.doctorName}>BS. {item.doctorName}</Text>
 
         <View style={styles.cardInfo}>
           <View style={styles.infoRow}>
             <Calendar size={16} color="#6b7280" />
-            <Text style={styles.infoText}>{formatDate(item.startAt)}</Text>
+            <Text style={styles.infoText}>{formattedDate}</Text>
           </View>
           <View style={styles.infoRow}>
             <Clock size={16} color="#6b7280" />
-            <Text style={styles.infoText}>{formatTime(item.startAt)}</Text>
+            <Text style={styles.infoText}>{formattedTime}</Text>
           </View>
+          {item.paymentStatus && (
+            <View style={styles.infoRow}>
+              <DollarSign size={16} color={getPaymentStatusColor(item.paymentStatus)} />
+              <Text style={[styles.infoText, { color: getPaymentStatusColor(item.paymentStatus) }]}>
+                {getPaymentStatusLabel(item.paymentStatus)}
+              </Text>
+            </View>
+          )}
         </View>
 
-        {(item.status === 'completed' || item.status === 'confirmed') && (
+        {canStartChat(item.status) && (
           <View style={styles.cardActions}>
             <TouchableOpacity
               style={styles.actionButton}
@@ -481,13 +461,13 @@ export default function AppointmentHistoryScreen() {
                     <View style={styles.modalInfoRow}>
                       <Calendar size={16} color="#6b7280" />
                       <Text style={styles.modalInfoText}>
-                        {formatDate(selectedAppointment.startAt)}
+                        {formatAppointmentDateTime(selectedAppointment.startAt).date}
                       </Text>
                     </View>
                     <View style={styles.modalInfoRow}>
                       <Clock size={16} color="#6b7280" />
                       <Text style={styles.modalInfoText}>
-                        {formatTime(selectedAppointment.startAt)}
+                        {formatAppointmentDateTime(selectedAppointment.startAt).time}
                       </Text>
                     </View>
                   </View>

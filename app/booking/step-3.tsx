@@ -32,7 +32,7 @@ export default function PatientInfoStep() {
           birthDate: user.profile.dateOfBirth || '',
           gender: user.profile.gender || '',
           address: user.profile.address || '',
-          phone: user.phone || '',
+          phone: user.phone || '', // ⚠️ phone có thể là null - cần cập nhật trong profile
         })
       );
       
@@ -52,7 +52,7 @@ export default function PatientInfoStep() {
           birthDate: '',
           gender: '',
           address: '',
-          phone: user.phone || '',
+          phone: user.phone || '', // ⚠️ phone có thể là null - cần cập nhật trong profile
         })
       );
     }
@@ -73,7 +73,7 @@ export default function PatientInfoStep() {
     <View style={styles.container}>
       <Text style={styles.title}>Thông tin bệnh nhân</Text>
       <Text style={styles.subtitle}>
-        Thông tin được lấy từ hồ sơ của bạn
+        Thông tin được lấy từ hồ sơ của bạn. {!user?.phone && '⚠️ Vui lòng cập nhật số điện thoại trong Hồ sơ cá nhân.'}
       </Text>
 
       <PatientInfoForm formData={formData} onNotesChange={handleNotesChange} />

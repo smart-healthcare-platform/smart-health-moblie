@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { Calendar as CalendarIcon } from 'lucide-react-native';
+import { getTodayDateString } from '../../../../src/lib/dateUtils';
 
 interface CalendarViewProps {
   availableDates: string[];
@@ -20,15 +21,16 @@ export default function CalendarView({
     acc[date] = {
       marked: true,
       dotColor: '#10b981',
-      selected: selectedDate?.split('T')[0] === date,
+      selected: selectedDate === date,
       selectedColor: '#10b981',
     };
     return acc;
   }, {} as any);
 
   const handleDayPress = (day: any) => {
-    const selectedDate = new Date(day.dateString);
-    onDateSelect(selectedDate.toISOString());
+    // Send date string directly without timezone conversion
+    // day.dateString is already in format "YYYY-MM-DD"
+    onDateSelect(day.dateString);
   };
 
   return (
@@ -47,7 +49,7 @@ export default function CalendarView({
         <Calendar
           markedDates={markedDates}
           onDayPress={handleDayPress}
-          minDate={new Date().toISOString().split('T')[0]}
+          minDate={getTodayDateString()}
           theme={{
             backgroundColor: '#ffffff',
             calendarBackground: '#ffffff',

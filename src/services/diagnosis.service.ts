@@ -35,7 +35,7 @@ function transformMetricsToModelInput(metrics: HealthMetrics): number[] {
   const chestPainTypeMap: Record<string, number> = { '0': 0, '1': 1, '2': 2, '3': 3 };
   const chestPainType = chestPainTypeMap[metrics.chestPainType];
 
-  const restingECGMap: Record<string, number> = { Normal: 1, ST: 2, LVH: 0 };
+  const restingECGMap: Record<string, number> = { Normal: 0, ST: 1, LVH: 2 };
   const restingECG = restingECGMap[metrics.restingECG];
 
   const stSlopeMap: Record<string, number> = { '0': 0, '1': 1, '2': 2 };

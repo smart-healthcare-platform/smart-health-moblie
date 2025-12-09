@@ -25,6 +25,7 @@ import { RootState } from '../src/redux';
 import { resetBooking, setDate, setSlot, setFormData } from '../src/redux/slices/bookingSlice';
 import { appointmentService } from '../src/services/appointment.service';
 import { CreateAppointmentPayload } from '../src/types';
+import { AppointmentType } from '../src/types/appointment-enums';
 import { useBookingValidation } from '../hooks/booking/useBookingValidation';
 
 // Lazy import components
@@ -98,16 +99,25 @@ export default function BookingScreen() {
       return;
     }
 
+    // ✅ Validate referenceId (patientId)
+    if (!user.referenceId) {
+      Alert.alert('Lỗi', 'Không tìm thấy thông tin bệnh nhân. Vui lòng đăng nhập lại.');
+      return;
+    }
+
+    // ✅ Get patient name from profile
+    const patientName = (user.role === 'PATIENT' && user.profile?.fullName) || formData.fullName || user.username;
+
     setLoading(true);
     const payload: CreateAppointmentPayload = {
       doctorId: doctor.id,
-      slotId: slot_id,
-      userId: user.id,
-      date: new Date(slot_start_time).toISOString(),
-      type: 'Khám bệnh',
-      notes: formData.notes || '',
       doctorName: doctor.display_name || doctor.full_name,
+      slotId: slot_id,
       startAt: slot_start_time,
+      patientId: user.referenceId, // ✅ Use referenceId instead of user.id
+      patientName: patientName, // ✅ Add patientName
+      notes: formData.notes || '',
+      type: AppointmentType.OFFLINE, // ✅ Use enum instead of hardcoded string
     };
 
     try {
