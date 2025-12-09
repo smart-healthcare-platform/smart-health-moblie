@@ -43,11 +43,12 @@ export const login = createAsyncThunk(
           
           const patient = patientRes.data.data;
           
-          // Return enhanced user with profile
+          // Return enhanced user with profile (matching website pattern)
           return {
             token,
             user: {
               ...user,
+              phone: patient.phone,  // ✅ Get phone from patient table
               role: "PATIENT" as const,
               referenceId: patient.id,
               profile: {
@@ -210,6 +211,7 @@ const authSlice = createSlice({
         state.loading = false;
         // Update user profile in state
         if (state.user && state.user.role === 'PATIENT') {
+          state.user.phone = action.payload.phone;  // ✅ Update phone too
           state.user.profile = {
             fullName: action.payload.full_name || action.payload.fullName,
             gender: action.payload.gender,
