@@ -21,16 +21,40 @@ export const doctorService = {
       )
       if (!res.data.success) return []
 
+      console.log('🔍 [DEBUG] Sample slot from backend:', res.data.data[0]);
+
       const slots: TimeSlot[] = res.data.data.map((s) => {
-        const start = new Date(s.start_time);
+        let date: string;
+        let time: string;
+        
+        // Support both formats:
+        // 1. ISO format: "2025-01-15T10:00:00.000Z"
+        // 2. Space-separated: "2025-01-15 10:00:00"
+        if (s.start_time.includes("T")) {
+          // ISO format - extract date directly to avoid timezone issues
+          date = s.start_time.split("T")[0]; // "2025-01-15"
+          const start = new Date(s.start_time);
+          time = start.toLocaleTimeString("vi-VN", { hour12: false, hour: "2-digit", minute: "2-digit" });
+          console.log(`📅 [ISO] start_time: ${s.start_time} → date: ${date}, time: ${time}`);
+        } else {
+          // Space-separated format (like website)
+          const [dateStr, timeStr] = s.start_time.split(" ");
+          date = dateStr; // "2025-01-15"
+          time = timeStr.slice(0, 5); // "10:00"
+          console.log(`📅 [SPACE] start_time: ${s.start_time} → date: ${date}, time: ${time}`);
+        }
+        
         return {
           id: s.id,
           startTime: s.start_time,
-          date: start.toISOString().split("T")[0],
-          time: start.toLocaleTimeString("vi-VN", { hour12: false, hour: "2-digit", minute: "2-digit" }),
+          date: date,
+          time: time,
           status: mapStatus(s.status),
         }
       })
+
+      console.log('✅ [DEBUG] Total slots parsed:', slots.length);
+      console.log('✅ [DEBUG] Unique dates:', Array.from(new Set(slots.map(s => s.date))));
 
       return slots
     } catch (err) {
