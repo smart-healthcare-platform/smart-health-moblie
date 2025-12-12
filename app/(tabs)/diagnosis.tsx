@@ -41,12 +41,7 @@ const stSlopeOptions = [
   { label: 'Phẳng', value: '1' },
   { label: 'Giảm', value: '2' },
 ];
-const caOptions = [
-  { label: '0', value: '0' },
-  { label: '1', value: '1' },
-  { label: '2', value: '2' },
-  { label: '3', value: '3' },
-];
+// caOptions removed as ca now uses FormInput
 const thalOptions = [
   { label: 'Không có', value: '0' },
   { label: 'Bình thường', value: '1' },
@@ -118,7 +113,10 @@ export default function DiagnosisScreen() {
 
   const isValid = useMemo(() => {
     // All fields required similar to website form (required attributes)
-    return Object.values(form).every((v) => v !== '' && v !== null && v !== undefined);
+    const allFilled = Object.values(form).every((v) => v !== '' && v !== null && v !== undefined);
+    // Additional validation for ca: must be integer 0-3
+    const caValid = form.ca !== '' && !isNaN(parseInt(form.ca)) && parseInt(form.ca) >= 0 && parseInt(form.ca) <= 3;
+    return allFilled && caValid;
   }, [form]);
 
   const handleSubmit = async () => {
@@ -246,11 +244,12 @@ export default function DiagnosisScreen() {
             onValueChange={(v: string) => handleChange('stSlope', v)}
             options={stSlopeOptions}
           />
-          <FormPicker
-            label="Số lượng mạch vành chính (ca)"
-            selectedValue={form.ca}
-            onValueChange={(v: string) => handleChange('ca', v)}
-            options={caOptions}
+          <FormInput
+            label="Số lượng mạch chính (0-3)"
+            value={form.ca}
+            onChangeText={(v: string) => handleChange('ca', v)}
+            placeholder="0"
+            keyboardType="numeric"
           />
           <FormPicker
             label="Thalassemia (thal)"
