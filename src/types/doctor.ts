@@ -8,7 +8,7 @@ export interface PaginatedResponse<T> {
 export interface Doctor {
   id: string;
   full_name: string;
-  display_name: string;
+  display_name?: string;
   avatar: string;
   specialty: string;
   experience_years: number;
@@ -30,7 +30,7 @@ export interface DoctorDetail {
   active: boolean
   created_at: string
   updated_at: string
-  display_name:string
+  display_name?:string
   certificates: Array<{
     id: string
     doctor_id: string
