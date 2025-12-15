@@ -37,9 +37,8 @@ export default function LoginScreen() {
         console.log('User:', resultAction.payload.user);
         console.log('==================');
         
-        Alert.alert('Thành công', 'Đăng nhập thành công!', [
-          { text: 'OK', onPress: () => router.replace('/(tabs)') }
-        ]);
+        // Chuyển hướng trực tiếp đến trang chủ
+        router.replace('/(tabs)');
       }
     } catch (err: any) {
       console.error('Login error:', err);
