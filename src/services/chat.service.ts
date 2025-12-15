@@ -24,7 +24,7 @@ export interface CreateConversationParams {
 // Define the response types from the backend API
 export interface ConversationResponse {
   id: string;
-  participants: { id: string; fullName: string; role: string }[]; // Updated to use fullName
+  participants: { id: string; userId: string; fullName: string; role: string }[]; // Updated to use fullName and userId
   lastMessage?: {
     content: string;
     createdAt: string;

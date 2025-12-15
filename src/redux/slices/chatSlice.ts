@@ -12,7 +12,7 @@ interface ConversationMessages {
 interface ChatState {
   conversations: {
     id: string;
-    participants: { id: string; fullName: string; role: string }[];
+    participants: { id: string; userId: string; fullName: string; role: string }[];
     lastMessage?: {
       content: string;
       createdAt: string;
